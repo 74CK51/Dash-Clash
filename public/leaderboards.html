@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Leaderboards</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header style="display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: #f7f7f7;">
+    <div style="display: flex; align-items: center;">
+      <a href="/" style="text-decoration: none;">
+        <img src="images/dashclash_logo.png" alt="Logo" style="height: 60px; margin-right: 10px;">
+      </a>
+    </div>
+    <nav style="display: flex; gap: 20px;">
+      <a href="leaderboards.html" style="text-decoration: none; color: #333;">Leaderboards</a>
+        <a href="http://www.strava.com/oauth/authorize?client_id=84396&response_type=code&redirect_uri=http://localhost:3000/exchange_token&scope=activity:read" style="text-decoration: none; color: #333;">Connect</a>
+    </nav>
+  </header>
+  <h1>Leaderboards</h1>
+  <select id="weekSelect">
+    <option value="">All Time</option>
+    <option value="0">Week 0</option>
+    <option value="1">Week 1</option>
+    <option value="2">Week 2</option>
+    <option value="3">Week 3</option>
+    <option value="4">Week 4</option>
+    <option value="5">Week 5</option>
+    <option value="6">Week 6</option>
+    <!-- Add more weeks as needed -->
+  </select>
+  <table id="leaderboard" border="1">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Week 0 Mileage</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script src="leaderboards.js"></script>
+</body>
+</html>

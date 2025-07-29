@@ -1,0 +1,23 @@
+.auth-button {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #fc4c02;
+  color: white;
+  text-decoration: none;
+  border-radius: 5px;
+  font-weight: bold;
+}
+
+.scroll-container {
+  display: flex;
+  overflow-x: auto;
+  gap: 1rem;
+}
+.week-card {
+  flex: 0 0 auto;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  min-width: 200px;
+  background: #f9f9f9;
+}
+
