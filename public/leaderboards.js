@@ -17,6 +17,10 @@ function loadLeaderboard(weekNum = "", stat = "mileage") {
 
         if (stat === "pace") {
           return paceToSeconds(a.pace) - paceToSeconds(b.pace); // lower is better
+        } else if (stat === "numRuns") {
+          const aVal = a.numRuns === "-" || a.numRuns === undefined ? -Infinity : a.numRuns;
+          const bVal = b.numRuns === "-" || b.numRuns === undefined ? -Infinity : b.numRuns;
+          return bVal - aVal; // higher is better
         } else {
           const aVal = a.mileage === "-" /*|| a.mileage === undefined*/ ? -Infinity : a.mileage;
           const bVal = b.mileage === "-" /*|| b.mileage === undefined*/ ? -Infinity : b.mileage;

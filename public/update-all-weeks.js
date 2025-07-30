@@ -18,6 +18,8 @@ async function getCurrentWeekIndex() {
   return null; // No current week found
 }
 
+// Go through all weeks starting from first week and update all users' weekly mileage
+// until we reach a week that is in the future (beyond today).
 async function updateAllUsersUpToToday() {
   const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
 

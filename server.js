@@ -78,11 +78,12 @@ app.get('/leaderboards', (req, res) => {
                 return {
                     name: userMap[userId],
                     mileage: "-",
-                    pace: "-"
+                    pace: "-",
+                    numRuns: "-"
                 };
             }
             const result = leaderboards_db.prepare(`
-                SELECT mileage, movingTime FROM leaderboards WHERE userId = ? AND weekNum = ?
+                SELECT mileage, movingTime, numRuns FROM leaderboards WHERE userId = ? AND weekNum = ?
             `).get(userId, weekNum);
 
             let pace = "-";
@@ -94,7 +95,8 @@ app.get('/leaderboards', (req, res) => {
             return {
                 name: userMap[userId],
                 mileage: result?.mileage !== undefined ? result.mileage : 0,
-                pace
+                pace,
+                numRuns: result?.numRuns !== undefined ? result.numRuns : 0
             };
         });
     } else {
@@ -105,11 +107,12 @@ app.get('/leaderboards', (req, res) => {
                 return {
                     name: userMap[userId],
                     mileage: "-",
-                    pace: "-"
+                    pace: "-",
+                    numRuns: "-"
                 };
             }
             const result = leaderboards_db.prepare(`
-                SELECT SUM(mileage) as mileage, SUM(movingTime) as movingTime FROM leaderboards WHERE userId = ?
+                SELECT SUM(mileage) as mileage, SUM(movingTime) as movingTime, SUM(numRuns) as numRuns FROM leaderboards WHERE userId = ?
             `).get(userId);
 
             let pace = "-";
@@ -121,7 +124,8 @@ app.get('/leaderboards', (req, res) => {
             return {
                 name: userMap[userId],
                 mileage: result?.mileage !== undefined ? result.mileage : 0,
-                pace              
+                pace,
+                numRuns: result?.numRuns !== undefined ? result.numRuns : 0       
             };
         });
     }
