@@ -65,6 +65,7 @@ const tokens = db.prepare('SELECT userId FROM tokens').all().map(row => row.user
 
 app.get('/leaderboards', (req, res) => {
     const weekNum = req.query.weekNum;
+    const stat = req.query.stat || "mileage"; // Default to mileage if not specified
     const users = Object.keys(userMap);
 
     let leaderboardData;
@@ -76,15 +77,24 @@ app.get('/leaderboards', (req, res) => {
             if (!hasToken) {
                 return {
                     name: userMap[userId],
-                    mileage: "-"
+                    mileage: "-",
+                    pace: "-"
                 };
             }
             const result = leaderboards_db.prepare(`
-                SELECT mileage FROM leaderboards WHERE userId = ? AND weekNum = ?
+                SELECT mileage, movingTime FROM leaderboards WHERE userId = ? AND weekNum = ?
             `).get(userId, weekNum);
+
+            let pace = "-";
+            if (result?.mileage > 0 && result?.movingTime > 0) {
+                const avgPace = (result.movingTime / 60) / result.mileage; // min/mile
+                pace = formatPace(avgPace);
+            }
+
             return {
                 name: userMap[userId],
-                mileage: result?.mileage !== undefined ? result.mileage : 0
+                mileage: result?.mileage !== undefined ? result.mileage : 0,
+                pace
             };
         });
     } else {
@@ -94,21 +104,37 @@ app.get('/leaderboards', (req, res) => {
             if (!hasToken) {
                 return {
                     name: userMap[userId],
-                    mileage: "-"
+                    mileage: "-",
+                    pace: "-"
                 };
             }
             const result = leaderboards_db.prepare(`
-                SELECT SUM(mileage) as mileage FROM leaderboards WHERE userId = ?
+                SELECT SUM(mileage) as mileage, SUM(movingTime) as movingTime FROM leaderboards WHERE userId = ?
             `).get(userId);
+
+            let pace = "-";
+            if (result?.mileage > 0 && result?.movingTime > 0) {
+                const avgPace = (result.movingTime / 60) / result.mileage; // min/mile
+                pace = formatPace(avgPace);
+            }
+
             return {
                 name: userMap[userId],
-                mileage: result?.mileage !== null && result?.mileage !== undefined ? Math.round(result.mileage * 100) / 100 : 0
+                mileage: result?.mileage !== undefined ? result.mileage : 0,
+                pace              
             };
         });
     }
 
     res.json(leaderboardData);
 });
+
+function formatPace(pace) {
+  if (pace === null || pace === undefined || isNaN(pace)) return "-";
+  const min = Math.floor(pace);
+  const sec = Math.round((pace - min) * 60);
+  return `${min}:${sec.toString().padStart(2, '0')}`;
+}
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);

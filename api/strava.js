@@ -109,6 +109,7 @@ async function updateUserWeeklyMileage(userId, weekNum) {
         userId TEXT NOT NULL,
         weekNum INTEGER NOT NULL,
         mileage REAL NOT NULL,
+        movingTime REAL,
         PRIMARY KEY (userId, weekNum)
     )
     `).run();
@@ -151,13 +152,16 @@ async function updateUserWeeklyMileage(userId, weekNum) {
             .filter(activity => activity.type === 'Run')
             .reduce((sum, activity) => sum + activity.distance, 0) / 1609.34;
             const totalMilesRounded = Math.round(totalMiles * 100) / 100;
-            console.log(totalMilesRounded, totalMiles)
+
+            const totalMovingTime = activities
+            .filter(activity => activity.type === 'Run')
+            .reduce((sum, activity) => sum + activity.moving_time, 0); // in seconds
 
             leaderboards_db.prepare(`
-                INSERT INTO leaderboards (userId, weekNum, mileage)
-                VALUES (?, ?, ?)
-                ON CONFLICT(userId, weekNum) DO UPDATE SET mileage = excluded.mileage;
-            `).run(userId, weekNum, totalMilesRounded);
+                INSERT INTO leaderboards (userId, weekNum, mileage, movingTime)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(userId, weekNum) DO UPDATE SET mileage = excluded.mileage, movingTime = excluded.movingTime;
+            `).run(userId, weekNum, totalMilesRounded, totalMovingTime);
 
             break;
 
