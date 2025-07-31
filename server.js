@@ -176,6 +176,59 @@ app.get('/team-leaderboard', (req, res) => {
     });
 });
 
+function getTeamTotal(team, weekNum) {
+    let total = 0;
+    for (const userId of Object.keys(team)) {
+        const result = leaderboards_db.prepare(`
+            SELECT mileage FROM leaderboards WHERE userId = ? AND weekNum = ?
+        `).get(userId, weekNum);
+        total += result?.mileage || 0;
+    }
+    return total;
+}
+
+app.get('/team-history', (req, res) => {
+    const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
+    const today = new Date();
+
+    let team1Points = 0;
+    let team2Points = 0;
+
+    const history = weekNums.map(weekNum => {
+
+        const team1Total = getTeamTotal(team1, weekNum);
+        const team2Total = getTeamTotal(team2, weekNum);
+
+        // Only count points if the week has ended
+        const weekEnd = new Date(weekRanges[weekNum].end);
+        let winner = null;
+        if (today > weekEnd) {
+            if (team1Total > team2Total) {
+                team1Points += 1;
+                winner = 1;
+            } else if (team2Total > team1Total) {
+                team2Points += 1;
+                winner = 2;
+            } else if (team1Total === team2Total ) {
+                winner = 0; // tie, no points
+            }
+        }
+
+        return {
+            weekNum,
+            team1: team1Total,
+            team2: team2Total,
+            winner
+        };
+    });
+
+    res.json({
+        history,
+        team1Points,
+        team2Points
+    });
+});
+
 // To communicate week ranges index.html
 app.get('/weekRanges', (req, res) => {
   res.json(weekRanges);

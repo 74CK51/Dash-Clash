@@ -20,6 +20,15 @@
 
 <div id="timer" style="margin: 20px 0; font-size: 1.2em; color: #c00;"></div>
 <div id="teamLeaderboard"></div>
+
+<div id="historyCarousel" style="margin-top: 40px;">
+  <button id="prevWeek" style="margin-right:10px;">⬅️</button>
+  <span id="historyContent"></span>
+  <button id="nextWeek" style="margin-left:10px;">➡️</button>
+</div>
+
+<div id="overallScore" style="font-size: 1.5em; font-weight: bold; margin: 20px 0;"></div>
+
 <script>
 // Fetch weekRanges from backend
 fetch('/weekRanges')
@@ -110,6 +119,106 @@ fetch('/weekRanges')
 
     handleLeaderboardDisplay();
   });
+</script>
+
+
+<script>
+let historyData = [];
+let currentHistoryIndex = 0;
+let team1Points = 0;
+let team2Points = 0;
+
+function updateHistoryCarousel() {
+  if (!historyData.length) return;
+  const week = historyData[currentHistoryIndex];
+  if (week.isTotal) {
+    document.getElementById('historyContent').innerHTML = `
+      <strong>Total (All Time):</strong>
+      Team 1: ${week.team1.toFixed(2)} miles &nbsp;|&nbsp; Team 2: ${week.team2.toFixed(2)} miles
+    `;
+  } else {
+    let winnerText = '';
+    if (week.winner === 1) winnerText = '🏆 Team 1 wins';
+    else if (week.winner === 2) winnerText = '🏆 Team 2 wins';
+    else if (week.winner === 0) winnerText = '🤝 Tie';
+    else winnerText = '⏳ Ongoing';
+    document.getElementById('historyContent').innerHTML = `
+      <strong>Week ${week.weekNum}:</strong>
+      Team 1: ${week.team1} miles &nbsp;|&nbsp; Team 2: ${week.team2} miles <br>
+      ${winnerText}
+    `;
+  }
+  document.getElementById('nextWeek').disabled = currentHistoryIndex === historyData.length - 1;
+  document.getElementById('prevWeek').disabled = currentHistoryIndex === 0;
+}
+
+Promise.all([
+  fetch('/team-history').then(res => res.json()),
+  fetch('/weekRanges').then(res => res.json())
+]).then(([{ history, team1Points: t1, team2Points: t2 }, weekRanges]) => {
+  team1Points = t1;
+  team2Points = t2;
+
+  // Show overall score
+  document.getElementById('overallScore').textContent = `Overall Score: ${team1Points} - ${team2Points}`;
+
+  const today = new Date();
+  const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
+  let lastIndex = weekNums.length - 1;
+
+  for (let i = 0; i < weekNums.length; i++) {
+    const { start, end } = weekRanges[weekNums[i]];
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (today >= startDate && today <= endDate) {
+      lastIndex = i;
+      break;
+    }
+    if (today < startDate) {
+      lastIndex = i - 1;
+      break;
+    }
+  }
+
+  const filteredHistory = history.slice(0, lastIndex + 1).reverse();
+
+  const total = filteredHistory.reduce(
+    (acc, week) => ({
+      isTotal: true,
+      team1: acc.team1 + week.team1,
+      team2: acc.team2 + week.team2
+    }),
+    { isTotal: true, team1: 0, team2: 0 }
+  );
+
+  // Round totals
+  total.team1 = Number(total.team1.toFixed(2));
+  total.team2 = Number(total.team2.toFixed(2));
+
+  historyData = [total, ...filteredHistory];
+
+  if (!filteredHistory.length) {
+    document.getElementById('historyCarousel').style.display = 'none';
+    return;
+  }
+
+  currentHistoryIndex = 0;
+  updateHistoryCarousel();
+});
+
+document.getElementById('nextWeek').onclick = function() {
+  if (currentHistoryIndex < historyData.length - 1) {
+    currentHistoryIndex++;
+    updateHistoryCarousel();
+  }
+};
+document.getElementById('prevWeek').onclick = function() {
+  if (currentHistoryIndex > 0) {
+    currentHistoryIndex--;
+    updateHistoryCarousel();
+  }
+};
 </script>
 
 </body>

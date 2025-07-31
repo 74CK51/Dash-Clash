@@ -22,7 +22,7 @@ const userMap = {
   "152828762": "Sommer",
   "31772969": "Carly",
   "165773731": "Hayley",
-  "105307293": "Greg"
+  "118539458": "Mady"
 };
 
 // 2. Week label to date range mapping

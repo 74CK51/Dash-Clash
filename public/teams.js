@@ -11,7 +11,7 @@ const team2 = {
   "84566629": "Aaron",
   "31772969": "Carly",
   "165773731": "Hayley",
-  "105307293": "Greg"
+  "118539458": "Mady"
 };
 
 module.exports = { team1, team2 };
