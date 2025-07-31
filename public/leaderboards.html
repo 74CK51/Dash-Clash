@@ -17,23 +17,19 @@
     </nav>
   </header>
   <h1>Leaderboards</h1>
-  <select id="weekSelect">
-    <option value="">All Time</option>
-    <option value="0">Week 0</option>
-    <option value="1">Week 1</option>
-    <option value="2">Week 2</option>
-    <option value="3">Week 3</option>
-    <option value="4">Week 4</option>
-    <option value="5">Week 5</option>
-    <option value="6">Week 6</option>
-    <!-- Add more weeks as needed -->
-  </select>
+  <select id="weekSelect"></select>
 
   <select id="statSelect">
   <option value="mileage">Mileage</option>
   <option value="pace">Pace</option>
   <option value="numRuns">Number of Runs</option>
   </select>
+
+  <div style="margin: 20px 0;">
+  <span id="firstMileage" style="margin-right: 30px;">🏆 1st Mileage: </span>
+  <span id="firstPace" style="margin-right: 30px;">🏆 1st Pace: </span>
+  <span id="firstNumRuns">🏆 1st Number of Runs: </span>
+</div>
 
   <table id="leaderboard" border="1">
   <thead>
@@ -44,6 +40,36 @@
   </thead>
   <tbody></tbody>
 </table>
+
+<script>
+fetch('/weekRanges')
+  .then(res => res.json())
+  .then(weekRanges => {
+    const weekSelect = document.getElementById('weekSelect');
+    weekSelect.innerHTML = ''; // Clear any existing options
+
+    // Get today's date
+    const today = new Date();
+    const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
+
+    // Always add "All Time" option
+    const allTimeOption = document.createElement('option');
+    allTimeOption.value = '';
+    allTimeOption.textContent = 'All Time';
+    weekSelect.appendChild(allTimeOption);
+
+    // Add options for weeks that have started (start <= today)
+    weekNums.forEach(weekNum => {
+      const startDate = new Date(weekRanges[weekNum].start);
+      if (today >= startDate) {
+        const opt = document.createElement('option');
+        opt.value = weekNum;
+        opt.textContent = `Week ${weekNum}`;
+        weekSelect.appendChild(opt);
+      }
+    });
+  });
+</script>
 
 <script src="leaderboards.js"></script>
 </body>

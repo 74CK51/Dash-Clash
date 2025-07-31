@@ -28,6 +28,61 @@ function loadLeaderboard(weekNum = "", stat = "mileage") {
         }
       });
 
+      /**
+       * getFirst
+       * -----------
+       * Determines the "winner(s)" for a given leaderboard stat (mileage, pace, or numRuns).
+       * 
+       * - For mileage and numRuns:
+       *    - Filters out users with invalid values ("-" or undefined).
+       *    - Sorts users by highest value.
+       *    - If the top value is 0, returns "-" (no winner).
+       *    - If multiple users are tied for the top value (>0), returns all as "Name (value), Name2 (value)".
+       *    - If only one user has the top value (>0), returns just that user.
+       * 
+       * - For pace:
+       *    - Filters out users with invalid pace ("-" or undefined).
+       *    - Sorts users by fastest pace (lowest MM:SS).
+       *    - Finds all users tied for the fastest pace.
+       *    - Returns all tied users as "Name (pace), Name2 (pace)".
+       * 
+       * Edge Cases:
+       *  - If no valid users exist for the stat, returns "-".
+       *  - For mileage/numRuns, if all valid values are 0, returns "-".
+       *  - For pace, if multiple users have the same fastest time, all are shown.
+       */
+      function getFirst(stat, isPace = false) {
+        const isValid = val => val !== "-" && val !== undefined;
+
+        const paceToSeconds = val => {
+          if (!isValid(val)) return Infinity;
+          const [min, sec] = val.split(":").map(Number);
+          return min * 60 + sec;
+        };
+
+        let valid = data.filter(u => isValid(isPace ? u.pace : u[stat]));
+        if (valid.length === 0) return "-";
+
+        if (isPace) {
+          valid.sort((a, b) => paceToSeconds(a.pace) - paceToSeconds(b.pace));
+          const topSeconds = paceToSeconds(valid[0].pace);
+          const winners = valid.filter(u => paceToSeconds(u.pace) === topSeconds);
+          return winners.map(u => `${u.name} (${u.pace})`).join(", ");
+        } else {
+          valid.sort((a, b) => b[stat] - a[stat]);
+          const topVal = valid[0][stat];
+          if (topVal === 0) return "-";
+          const winners = valid.filter(u => u[stat] === topVal);
+          return winners.map(u => `${u.name} (${u[stat]})`).join(", ");
+        }
+      }
+
+
+      document.getElementById('firstMileage').textContent = `🏆 1st Mileage: ${getFirst('mileage')}`;
+      document.getElementById('firstPace').textContent = `🏆 1st Pace: ${getFirst('pace', true)}`;
+      document.getElementById('firstNumRuns').textContent = `🏆 1st Number of Runs: ${getFirst('numRuns')}`;
+
+
       const tbody = document.querySelector('#leaderboard tbody');
       tbody.innerHTML = "";
 

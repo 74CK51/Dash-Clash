@@ -3,19 +3,41 @@ const path = require('path');
 const stravaPath = path.resolve(__dirname, '../api', 'strava');
 const { updateUserWeeklyMileage, userMap, weekRanges } = require(stravaPath); // adjust path as needed
 
-async function getCurrentWeekIndex() {
-  const today = new Date();
+// async function getCurrentWeekIndex() {
+//   const today = new Date();
 
-  for (let weekNum = 0; weekNum <= Object.keys(weekRanges).length - 1; weekNum++) {
+//   for (let weekNum = 0; weekNum <= Object.keys(weekRanges).length - 1; weekNum++) {
+//     const { start, end } = weekRanges[weekNum];
+//     const startDate = new Date(start);
+//     const endDate = new Date(end);
+
+//     if (today >= startDate && today <= endDate) {
+//       return weekNum;
+//     }
+//   }
+//   return null; // No current week found
+// }
+
+function getCurrentWeekIndex() {
+  const today = new Date();
+  const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
+
+  for (let weekNum of weekNums) {
     const { start, end } = weekRanges[weekNum];
     const startDate = new Date(start);
     const endDate = new Date(end);
-
     if (today >= startDate && today <= endDate) {
       return weekNum;
     }
   }
-  return null; // No current week found
+  // If before all weeks
+  const firstWeekStart = new Date(weekRanges[weekNums[0]].start);
+  if (today < firstWeekStart) return "before";
+  // If after all weeks
+  const lastWeekNum = weekNums[weekNums.length - 1];
+  const lastWeekEnd = new Date(weekRanges[lastWeekNum].end);
+  if (today > lastWeekEnd) return "after";
+  return null;
 }
 
 // Go through all weeks starting from first week and update all users' weekly mileage

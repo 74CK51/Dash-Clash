@@ -5,6 +5,8 @@ const qs = require('qs');
 const Database = require('better-sqlite3');
 const app = express();
 const { userMap } = require('./api/strava'); // Import userMap from strava.js
+const { team1, team2 } = require('./public/teams');
+const { weekRanges } = require('./api/strava');
 
 
 const PORT = 3000;
@@ -131,6 +133,52 @@ app.get('/leaderboards', (req, res) => {
     }
 
     res.json(leaderboardData);
+});
+
+app.get('/team-leaderboard', (req, res) => {
+    const weekNum = req.query.weekNum;
+    if (weekNum === undefined) return res.status(400).json({ error: "weekNum required" });
+
+    const db = new Database('leaderboards.db');
+    function getTeamStats(team) {
+        let total = 0;
+        let contributors = [];
+        for (const userId of Object.keys(team)) {
+            // Check if user is authorized
+            const hasToken = tokens.includes(userId);
+            if (!hasToken) {
+                contributors.push({ name: team[userId], mileage: "-" });
+                continue;
+            }
+            const result = leaderboards_db.prepare(`
+                SELECT mileage FROM leaderboards WHERE userId = ? AND weekNum = ?
+            `).get(userId, weekNum);
+            const mileage = result?.mileage !== undefined ? result.mileage : 0;
+            total += mileage;
+            contributors.push({ name: team[userId], mileage });
+        }
+        // Sort contributors by mileage descending, treating "-" as lowest
+        contributors.sort((a, b) => {
+            if (a.mileage === "-") return 1;
+            if (b.mileage === "-") return -1;
+            return b.mileage - a.mileage;
+        });
+        return { total, contributors };
+    }
+
+    const team1Stats = getTeamStats(team1);
+    const team2Stats = getTeamStats(team2);
+
+    res.json({
+        weekNum,
+        team1: team1Stats,
+        team2: team2Stats
+    });
+});
+
+// To communicate week ranges index.html
+app.get('/weekRanges', (req, res) => {
+  res.json(weekRanges);
 });
 
 function formatPace(pace) {
