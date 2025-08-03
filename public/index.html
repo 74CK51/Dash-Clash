@@ -14,20 +14,38 @@
   </div>
   <nav style="display: flex; gap: 20px;">
     <a href="leaderboards.html" style="text-decoration: none; color: #333;">Leaderboards</a>
-    <a href="http://www.strava.com/oauth/authorize?client_id=84396&response_type=code&redirect_uri=http://localhost:3000/exchange_token&scope=activity:read" style="text-decoration: none; color: #333;">Connect</a>
-  </nav>
+<a href="http://www.strava.com/oauth/authorize?client_id=84396&response_type=code&redirect_uri=http://localhost:3000/exchange_token&scope=activity:read" class="connect-button">CONNECT</a>  </nav>
 </header>
+
+<!-- <div class="score-bar-bg"> -->
+  <div class="content-container">
+    <div class="score-bar">
+      <div class="score-box team1-score" id="team1OverallScore">0</div>
+      <div class="score-center" id="teamScoresWeek"></div>
+      <div class="score-box team2-score" id="team2OverallScore">1</div>
+    </div>
+  </div>
+<!-- </div> -->
+
+<div class="content-container">
+  <div class="main-rectangle">
+    <!-- Your main content goes here -->
+
 
 <div id="timer" style="margin: 20px 0; font-size: 1.2em; color: #c00;"></div>
 <div id="teamLeaderboard"></div>
 
-<div id="historyCarousel" style="margin-top: 40px;">
-  <button id="prevWeek" style="margin-right:10px;">⬅️</button>
+<div id="historyCarousel">
+  <button id="prevWeek" class="carousel-btn">
+  <img src="images/arrow-left.png" alt="Previous" style="height:50px;width:50px;">
+</button>
   <span id="historyContent"></span>
-  <button id="nextWeek" style="margin-left:10px;">➡️</button>
+  <button id="nextWeek" class="carousel-btn">
+  <img src="images/arrow-right.png" alt="Next" style="height:50px;width:50px;">
+</button>
 </div>
 
-<div id="overallScore" style="font-size: 1.5em; font-weight: bold; margin: 20px 0;"></div>
+<!-- <div id="overallScore" style="font-size: 1.5em; font-weight: bold; margin: 20px 0;"></div> -->
 
 <script>
 // Fetch weekRanges from backend
@@ -83,19 +101,32 @@ fetch('/weekRanges')
       fetch(`/team-leaderboard?weekNum=${weekNum}`)
         .then(res => res.json())
         .then(data => {
+          document.getElementById('teamScoresWeek').textContent = `TEAM SCORES (WEEK ${data.weekNum})`;
           document.getElementById('teamLeaderboard').innerHTML = `
-            <h2>Team Scores (Week ${data.weekNum})</h2>
-            <div>
-              <h3>Team 1: ${data.team1.total} miles</h3>
-              <ul>
-                ${data.team1.contributors.map(u => `<li>${u.name}: ${u.mileage} miles</li>`).join('')}
-              </ul>
-            </div>
-            <div>
-              <h3>Team 2: ${data.team2.total} miles</h3>
-              <ul>
-                ${data.team2.contributors.map(u => `<li>${u.name}: ${u.mileage} miles</li>`).join('')}
-              </ul>
+            <div class="leaderboard-main">
+              <div class="leaderboard-miles-row">
+                <span class="leaderboard-miles team1">${data.team1.total}</span>
+                <span class="leaderboard-miles-vs">vs</span>
+                <span class="leaderboard-miles team2">${data.team2.total}</span>
+              </div>
+              <div class="leaderboard-contributors-row">
+                <div class="leaderboard-col team1">
+                  ${data.team1.contributors.map(u => `
+                    <div class="contributor">
+                      <span class="contributor-name">${u.name}</span>
+                      <span class="contributor-miles">${u.mileage}</span>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="leaderboard-col team2">
+                  ${data.team2.contributors.map(u => `
+                    <div class="contributor">
+                      <span class="contributor-name">${u.name}</span>
+                      <span class="contributor-miles">${u.mileage}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
             </div>
           `;
         });
@@ -131,21 +162,35 @@ let team2Points = 0;
 function updateHistoryCarousel() {
   if (!historyData.length) return;
   const week = historyData[currentHistoryIndex];
+
+  let team1Color = '#007bff';
+  let team2Color = '#fc0202';
+
+  // Determine leading team color
+  let team1Style = `color: ${team1Color}; font-weight: bold;`;
+  let team2Style = `color: ${team2Color}; font-weight: bold;`;
+
+  if (week.team1 > week.team2) {
+    team1Style += 'text-decoration: underline;';
+    team2Style += 'opacity: 0.5;';
+  } else if (week.team2 > week.team1) {
+    team2Style += 'text-decoration: underline;';
+    team1Style += 'opacity: 0.5;';
+  }
+
   if (week.isTotal) {
     document.getElementById('historyContent').innerHTML = `
       <strong>Total (All Time):</strong>
-      Team 1: ${week.team1.toFixed(2)} miles &nbsp;|&nbsp; Team 2: ${week.team2.toFixed(2)} miles
+      <span style="${team1Style}">Team 1: ${week.team1.toFixed(2)} miles</span>
+      &nbsp;|&nbsp;
+      <span style="${team2Style}">Team 2: ${week.team2.toFixed(2)} miles</span>
     `;
   } else {
-    let winnerText = '';
-    if (week.winner === 1) winnerText = '🏆 Team 1 wins';
-    else if (week.winner === 2) winnerText = '🏆 Team 2 wins';
-    else if (week.winner === 0) winnerText = '🤝 Tie';
-    else winnerText = '⏳ Ongoing';
     document.getElementById('historyContent').innerHTML = `
       <strong>Week ${week.weekNum}:</strong>
-      Team 1: ${week.team1} miles &nbsp;|&nbsp; Team 2: ${week.team2} miles <br>
-      ${winnerText}
+      <span style="${team1Style}">Team 1: ${week.team1} miles</span>
+      &nbsp;|&nbsp;
+      <span style="${team2Style}">Team 2: ${week.team2} miles</span>
     `;
   }
   document.getElementById('nextWeek').disabled = currentHistoryIndex === historyData.length - 1;
@@ -160,7 +205,9 @@ Promise.all([
   team2Points = t2;
 
   // Show overall score
-  document.getElementById('overallScore').textContent = `Overall Score: ${team1Points} - ${team2Points}`;
+  // document.getElementById('overallScore').textContent = `Overall Score: ${team1Points} - ${team2Points}`;
+  document.getElementById('team1OverallScore').textContent = team1Points;
+  document.getElementById('team2OverallScore').textContent = team2Points;
 
   const today = new Date();
   const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
@@ -220,6 +267,7 @@ document.getElementById('prevWeek').onclick = function() {
   }
 };
 </script>
+</div>
 
 </body>
 </html>
