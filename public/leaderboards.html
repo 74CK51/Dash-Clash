@@ -13,33 +13,47 @@
     </div>
     <nav style="display: flex; gap: 20px;">
       <a href="leaderboards.html" style="text-decoration: none; color: #333;">Leaderboards</a>
-        <a href="http://www.strava.com/oauth/authorize?client_id=84396&response_type=code&redirect_uri=http://localhost:3000/exchange_token&scope=activity:read" style="text-decoration: none; color: #333;">Connect</a>
-    </nav>
+  <a href="http://www.strava.com/oauth/authorize?client_id=84396&response_type=code&redirect_uri=http://localhost:3000/exchange_token&scope=activity:read" class="connect-button">CONNECT</a>  </nav>
   </header>
-  <h1>Leaderboards</h1>
-  <select id="weekSelect"></select>
 
-  <select id="statSelect">
-  <option value="mileage">Mileage</option>
-  <option value="pace">Pace</option>
-  <option value="numRuns">Number of Runs</option>
-  </select>
+  <div class="content-container">
+  <div class="main-rectangle">
 
-  <div style="margin: 20px 0;">
-  <span id="firstMileage" style="margin-right: 30px;">🏆 1st Mileage: </span>
-  <span id="firstPace" style="margin-right: 30px;">🏆 1st Pace: </span>
-  <span id="firstNumRuns">🏆 1st Number of Runs: </span>
+
+  <div class="leaderboard-titles">
+    <div class="title-card">
+      <div class="title-label">SPEED DEMON</div>
+      <div class="title-winner" id="firstPace"></div>
+    </div>
+    <div class="title-card">
+      <div class="title-label">STRAVA SPAMMER</div>
+      <div class="title-winner" id="firstNumRuns"></div>
+    </div>
+    <div class="title-card">
+      <div class="title-label">MILEAGE MAESTRO</div>
+      <div class="title-winner" id="firstMileage"></div>
+    </div>
+  </div>
+
+  <div class="select-row">
+    <select id="weekSelect"></select>
+    <select id="statSelect">
+      <option value="mileage">Mileage</option>
+      <option value="pace">Pace</option>
+      <option value="numRuns">Number of Runs</option>
+    </select>
+  </div>
+
+<div class="leaderboard-wrapper">
+  <div class="leaderboard-header">
+    <span class="place-col">Place</span>
+    <span class="name-col">Name</span>
+    <span class="stat-col" id="statHeader">Week 0 Mileage</span>
+  </div>
+  <div id="leaderboard"></div>
 </div>
-
-  <table id="leaderboard" border="1">
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th id ="statHeader">Week 0 Mileage</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
+</div>
+</div>
 
 <script>
 fetch('/weekRanges')

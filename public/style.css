@@ -304,3 +304,140 @@ nav a {
   cursor: not-allowed;
 }
 
+.leaderboard-wrapper {
+  width: 100%;
+  margin-top: 20px;
+}
+
+/* Make 1st place cards bigger and styled */
+#firstMileage, #firstPace, #firstNumRuns {
+  font-size: 2.2em;
+  font-family: 'Sangyo', Arial, sans-serif;
+  font-weight: bold;
+  color: #ff8800;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-right: 30px;
+  display: inline-block;
+  letter-spacing: 1px;
+}
+
+/* Style dropdowns to match Sangyo font and rectangle look */
+#weekSelect, #statSelect {
+  font-size: 1.2em;
+  font-family: 'Sangyo', Arial, sans-serif;
+  font-weight: bold;
+  color: #222;
+  background: #fff;
+  border: 2px solid #222;
+  border-radius: 0;
+  padding: 8px 18px;
+  margin-right: 16px;
+  box-shadow: none;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.leaderboard-header .place-col {
+  color: #ff8800;
+  font-weight: bold;
+  font-size: 1em;
+  letter-spacing: 2px;
+}
+
+.leaderboard-header,
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 100px;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+}
+
+.leaderboard-header {
+  font-weight: bold;
+  background-color: #f0f0f0;
+  border-top: 2px solid #333;
+}
+
+.leaderboard-row:nth-child(even) {
+  background-color: #cacaca;
+}
+
+.leaderboard-row:nth-child(odd) {
+  background-color: #fff;
+}
+
+.place-col {
+  text-align: center;
+  font-weight: bold;
+}
+
+.name-col {
+  padding-left: 10px;
+}
+
+.stat-col {
+  text-align: right;
+  padding-right: 10px;
+}
+
+.leaderboard-titles {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 64px;
+  margin: 32px 0 24px 0;
+  flex-wrap: wrap;
+}
+
+.title-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 220px;
+}
+
+.title-label {
+  font-family: 'Sangyo', Arial, sans-serif;
+  font-size: 2.4em;
+  font-weight: bold;
+  color: #222;
+  margin-bottom: 4px;
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+.title-winner {
+  font-family: 'Sangyo', Arial, sans-serif;
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #007bff;
+  text-align: center;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+
+/* Orange for mileage maestro winner */
+.title-card:last-child .title-winner {
+  color: #ff8800;
+}
+
+/* Responsive for mobile */
+@media (max-width: 900px) {
+  .leaderboard-titles {
+    gap: 24px;
+  }
+  .title-card {
+    min-width: 140px;
+  }
+  .title-label {
+    font-size: 1.5em;
+  }
+  .title-winner {
+    font-size: 1em;
+  }
+}

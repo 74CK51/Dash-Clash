@@ -67,33 +67,34 @@ function loadLeaderboard(weekNum = "", stat = "mileage") {
           valid.sort((a, b) => paceToSeconds(a.pace) - paceToSeconds(b.pace));
           const topSeconds = paceToSeconds(valid[0].pace);
           const winners = valid.filter(u => paceToSeconds(u.pace) === topSeconds);
-          return winners.map(u => `${u.name} (${u.pace})`).join(", ");
+          return winners.map(u => `${u.name} ${u.pace}`).join(", ");
         } else {
           valid.sort((a, b) => b[stat] - a[stat]);
           const topVal = valid[0][stat];
           if (topVal === 0) return "-";
           const winners = valid.filter(u => u[stat] === topVal);
-          return winners.map(u => `${u.name} (${u[stat]})`).join(", ");
+          return winners.map(u => `${u.name} ${u[stat]}`).join(", ");
         }
       }
 
 
-      document.getElementById('firstMileage').textContent = `🏆 1st Mileage: ${getFirst('mileage')}`;
-      document.getElementById('firstPace').textContent = `🏆 1st Pace: ${getFirst('pace', true)}`;
-      document.getElementById('firstNumRuns').textContent = `🏆 1st Number of Runs: ${getFirst('numRuns')}`;
+      document.getElementById('firstMileage').textContent = `${getFirst('mileage')} MILES`;
+      document.getElementById('firstPace').textContent = `${getFirst('pace', true)} MIN/MILE`;
+      document.getElementById('firstNumRuns').textContent = `${getFirst('numRuns')} RUNS`;
 
+    const leaderboard = document.getElementById('leaderboard');
+    leaderboard.innerHTML = "";
 
-      const tbody = document.querySelector('#leaderboard tbody');
-      tbody.innerHTML = "";
-
-      data.forEach(user => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${user.name}</td>
-          <td>${user[stat]}</td>
-        `;
-        tbody.appendChild(row);
-      });
+    data.forEach((user, index) => {
+      const row = document.createElement('div');
+      row.classList.add('leaderboard-row');
+      row.innerHTML = `
+        <span class="place-col">${index + 1}</span>
+        <span class="name-col">${user.name}</span>
+        <span class="stat-col">${user[stat]}</span>
+      `;
+      leaderboard.appendChild(row);
+    });
     })
     .catch(err => {
       console.error('Failed to load leaderboard:', err);
@@ -104,7 +105,9 @@ function updateTableHeader(weekNum, stat) {
   const th = document.getElementById('statHeader');
   if (stat === "mileage") {
     th.textContent = weekNum === "" ? "All Time Mileage" : `Week ${weekNum} Mileage`;
-  } else {
+  } else if (stat === "numRuns") {
+    th.textContent = weekNum === "" ? "All Time Runs" : `Week ${weekNum} Runs`;
+  } else if (stat === "pace") {
     th.textContent = weekNum === "" ? "All Time Pace" : `Week ${weekNum} Pace`;
   }
 }
