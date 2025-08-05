@@ -133,7 +133,6 @@ fetch('/weekRanges')
     }
 
     function handleLeaderboardDisplay() {
-      console.log("a")
       const weekIndex = getCurrentWeekIndex();
       if (weekIndex === "before") {
         document.getElementById('teamLeaderboard').innerHTML = '';
@@ -148,7 +147,7 @@ fetch('/weekRanges')
         document.getElementById('teamLeaderboard').innerHTML = 'No leaderboard available.';
       }
     }
-
+    handleLeaderboardDisplay();
     setInterval(handleLeaderboardDisplay, 5000);
   });
 </script>

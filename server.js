@@ -92,7 +92,7 @@ app.get('/leaderboards', async (req, res) => {
     const weekNum = req.query.weekNum;
     const stat = req.query.stat || "mileage"; // Default to mileage if not specified
     const users = Object.keys(userMap);
-    const tokens = await getTokens();
+    const tokensSet = new Set(await getTokens()); // no need to loop later
 
     let leaderboardData;
     if (weekNum !== undefined && weekNum !== "") {
@@ -100,8 +100,8 @@ app.get('/leaderboards', async (req, res) => {
         // leaderboardData = users.map(userId => {
         leaderboardData = await Promise.all(users.map(async userId => {
 
+            hasToken = tokensSet.has(userId);
             // Check if user has a token
-            const hasToken = tokens.includes(userId);
             if (!hasToken) {
                 return {
                     name: userMap[userId],
@@ -137,7 +137,8 @@ app.get('/leaderboards', async (req, res) => {
         // leaderboardData = users.map(userId => {
         leaderboardData = await Promise.all(users.map(async userId => {
 
-            const hasToken = tokens.includes(userId);
+            hasToken = tokensSet.has(userId);
+
             if (!hasToken) {
                 return {
                     name: userMap[userId],
@@ -180,34 +181,43 @@ app.get('/team-leaderboard', async (req, res) => {
 
     // const db = new Database('leaderboards.db');
     async function getTeamStats(team) {
+    const userIds = Object.keys(team);
+    const tokensSet = new Set(await getTokens()); // no need to loop later
+    
+    const result = await pool.query(
+        'SELECT user_id, mileage FROM leaderboards WHERE user_id = ANY($1) AND week_num = $2',
+        [userIds, weekNum]
+    );
+
+    const mileageMap = new Map();
+        for (const row of result.rows) {
+            mileageMap.set(row.user_id, row.mileage);
+        }
+
         let total = 0;
         let contributors = [];
-        for (const userId of Object.keys(team)) {
-            // Check if user is authorized
-            const hasToken = tokens.includes(userId);
-            if (!hasToken) {
-                contributors.push({ name: team[userId], mileage: "-" });
-                continue;
-            }
-            // const result = leaderboards_db.prepare(`
-            //     SELECT mileage FROM leaderboards WHERE userId = ? AND weekNum = ?
-            // `).get(userId, weekNum);
-            const result = await pool.query(
-                'SELECT mileage FROM leaderboards WHERE user_id = $1 AND week_num = $2',
-                [userId, weekNum]
-            );
-            const row = result.rows[0];
 
-            const mileage = row?.mileage !== undefined ? row.mileage : 0;
+        for (const userId of userIds) {
+            const hasToken = tokensSet.has(userId);
+
+            if (!hasToken) {
+            contributors.push({ name: team[userId], mileage: "-" });
+            continue;
+            }
+
+            const mileage = mileageMap.get(userId) ?? 0;
             total += mileage;
+
             contributors.push({ name: team[userId], mileage });
         }
+
         // Sort contributors by mileage descending, treating "-" as lowest
         contributors.sort((a, b) => {
             if (a.mileage === "-") return 1;
             if (b.mileage === "-") return -1;
             return b.mileage - a.mileage;
         });
+
         return { total, contributors };
     }
 
