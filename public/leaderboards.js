@@ -67,20 +67,25 @@ function loadLeaderboard(weekNum = "", stat = "mileage") {
           valid.sort((a, b) => paceToSeconds(a.pace) - paceToSeconds(b.pace));
           const topSeconds = paceToSeconds(valid[0].pace);
           const winners = valid.filter(u => paceToSeconds(u.pace) === topSeconds);
-          return winners.map(u => `${u.name} ${u.pace}`).join(", ");
+          return winners.map(u => `${u.name} - ${u.pace}`).join(", ");
         } else {
           valid.sort((a, b) => b[stat] - a[stat]);
           const topVal = valid[0][stat];
           if (topVal === 0) return "-";
           const winners = valid.filter(u => u[stat] === topVal);
-          return winners.map(u => `${u.name} ${u[stat]}`).join(", ");
+          return winners.map(u => `${u.name} - ${u[stat]}`).join(", ");
         }
       }
 
 
-      document.getElementById('firstMileage').textContent = `${getFirst('mileage')} MILES`;
-      document.getElementById('firstPace').textContent = `${getFirst('pace', true)} MIN/MILE`;
-      document.getElementById('firstNumRuns').textContent = `${getFirst('numRuns')} RUNS`;
+    const mileageFirst = getFirst('mileage');
+    document.getElementById('firstMileage').textContent = mileageFirst === "-" ? "-" : `${mileageFirst} MILES`;
+
+    const paceFirst = getFirst('pace', true);
+    document.getElementById('firstPace').textContent = paceFirst === "-" ? "-" : `${paceFirst} MIN/MILE`;
+
+    const numRunsFirst = getFirst('numRuns');
+    document.getElementById('firstNumRuns').textContent = numRunsFirst === "-" ? "-" : `${numRunsFirst} RUNS`;
 
     const leaderboard = document.getElementById('leaderboard');
     leaderboard.innerHTML = "";

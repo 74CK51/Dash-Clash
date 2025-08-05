@@ -420,11 +420,10 @@ nav a {
   margin-bottom: 0;
   margin-top: 0;
 }
-
-/* Orange for mileage maestro winner */
+/* 
 .title-card:last-child .title-winner {
-  color: #ff8800;
-}
+  color: #a00aa0;
+} */
 
 /* Responsive for mobile */
 @media (max-width: 900px) {
