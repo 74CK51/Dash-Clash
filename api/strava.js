@@ -4,12 +4,18 @@ require('dotenv').config({
     path: path.join(__dirname, '../.env')
 });
 
-const Database = require('better-sqlite3');
+// const Database = require('better-sqlite3');
 
-const dbTokensPath = path.join(__dirname, '../tokens.db');
-const db = new Database(dbTokensPath);
+// const dbTokensPath = path.join(__dirname, '../tokens.db');
+// const db = new Database(dbTokensPath);
 
 const axios = require('axios');
+
+const { Pool } = require('pg');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
 // 1. Name to Strava ID mapping
 const userMap = {
@@ -38,8 +44,37 @@ const weekRanges = {
     8:  { start: "2025-05-18T23:59", end: "2025-05-26T00:00" },
 };
 
+// Create table if not exists
+async function ensureTables() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tokens (
+      user_id TEXT PRIMARY KEY,
+      access_token TEXT,
+      refresh_token TEXT,
+      expires_at BIGINT
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS leaderboards (
+      user_id TEXT NOT NULL,
+      week_num INTEGER NOT NULL,
+      mileage REAL NOT NULL,
+      moving_time REAL,
+      num_runs INTEGER,
+      PRIMARY KEY (user_id, week_num)
+    );
+  `);
+}
+ensureTables();
+
 async function refreshToken(userId) {
-  const token = db.prepare('SELECT userId, access_token, refresh_token, expires_at FROM tokens WHERE userId = ?').get(userId);
+//   const token = db.prepare('SELECT userId, access_token, refresh_token, expires_at FROM tokens WHERE userId = ?').get(userId);
+  const { rows } = await pool.query(
+    'SELECT user_id, access_token, refresh_token, expires_at FROM tokens WHERE user_id = $1',
+    [userId]
+  );
+  const token = rows[0];
+
   if (!token) return false;
   const now = Math.floor(Date.now() / 1000); // current time in seconds
 
@@ -55,20 +90,27 @@ async function refreshToken(userId) {
             refresh_token: token.refresh_token
         });
 
-        db.prepare(`
-            INSERT OR REPLACE INTO tokens (userId, access_token, refresh_token, expires_at)
-            VALUES (?, ?, ?, ?)
-        `).run(
-            userId,
-            response.data.access_token,
-            response.data.refresh_token,
-            response.data.expires_at
-        );
+        // db.prepare(`
+        //     INSERT OR REPLACE INTO tokens (userId, access_token, refresh_token, expires_at)
+        //     VALUES (?, ?, ?, ?)
+        // `).run(
+        //     userId,
+        //     response.data.access_token,
+        //     response.data.refresh_token,
+        //     response.data.expires_at
+        // );
+        await pool.query(`
+            INSERT INTO tokens (user_id, access_token, refresh_token, expires_at)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user_id) DO UPDATE SET access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token, expires_at = EXCLUDED.expires_at
+            `, [userId, response.data.access_token, response.data.refresh_token, response.data.expires_at]);
 
         console.log('Token was refreshed');
         return true;
     } catch (err) {
-        db.prepare('DELETE FROM tokens WHERE userId = ?').run(userId);
+        // db.prepare('DELETE FROM tokens WHERE userId = ?').run(userId);
+        await pool.query('DELETE FROM tokens WHERE user_id = $1', [userId]);
+
         console.error('Error refreshing token:', err.response?.data || err);
         return false;
     }
@@ -81,23 +123,11 @@ async function refreshToken(userId) {
 
 async function updateUserWeeklyMileage(userId, weekNum) {
     await refreshToken(userId);
-    const token = db.prepare('SELECT userId, access_token, refresh_token, expires_at FROM tokens WHERE userId = ?').get(userId);
+    // const token = db.prepare('SELECT userId, access_token, refresh_token, expires_at FROM tokens WHERE userId = ?').get(userId);
+    const { rows } = await pool.query('SELECT user_id, access_token, refresh_token, expires_at FROM tokens WHERE user_id = $1', [userId]);
+    const token = rows[0];
+
     if (!token) return;
-
-    const dbLeaderboardsPath = path.join(__dirname, '../leaderboards.db');
-    const leaderboards_db = new Database(dbLeaderboardsPath);
-
-    // Create table if not exists
-    leaderboards_db.prepare(`
-    CREATE TABLE IF NOT EXISTS leaderboards (
-        userId TEXT NOT NULL,
-        weekNum INTEGER NOT NULL,
-        mileage REAL NOT NULL,
-        movingTime REAL,
-        numRuns INTEGER,
-        PRIMARY KEY (userId, weekNum)
-    )
-    `).run();
 
     let { start, end } = weekRanges[weekNum];
 
@@ -144,12 +174,17 @@ async function updateUserWeeklyMileage(userId, weekNum) {
 
             const numRuns = activities.filter(activity => activity.type === 'Run').length;
 
-            leaderboards_db.prepare(`
-                INSERT INTO leaderboards (userId, weekNum, mileage, movingTime, numRuns)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(userId, weekNum) DO UPDATE SET mileage = excluded.mileage, movingTime = excluded.movingTime, numRuns = excluded.numRuns;
-            `).run(userId, weekNum, totalMilesRounded, totalMovingTime, numRuns);
-
+            // leaderboards_db.prepare(`
+            //     INSERT INTO leaderboards (userId, weekNum, mileage, movingTime, numRuns)
+            //     VALUES (?, ?, ?, ?, ?)
+            //     ON CONFLICT(userId, weekNum) DO UPDATE SET mileage = excluded.mileage, movingTime = excluded.movingTime, numRuns = excluded.numRuns;
+            // `).run(userId, weekNum, totalMilesRounded, totalMovingTime, numRuns);
+            await pool.query(`
+                INSERT into leaderboards(user_id, week_num, mileage, moving_time, num_runs)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (user_id, week_num) DO UPDATE SET mileage = EXCLUDED.mileage, moving_time = EXCLUDED.moving_time, num_runs = EXCLUDED.num_runs
+            `, [userId, weekNum, totalMilesRounded, totalMovingTime, numRuns]);
+            
             break;
 
         } catch (err) {
@@ -157,9 +192,10 @@ async function updateUserWeeklyMileage(userId, weekNum) {
             console.error('Error fetching activities', err.response?.data || err);
 
             if (attempts == 3) {
-                leaderboards_db.prepare(`
-                    DELETE FROM leaderboards WHERE userId = ?
-                `).run(userId); 
+                // leaderboards_db.prepare(`
+                //     DELETE FROM leaderboards WHERE userId = ?
+                // `).run(userId); 
+                await pool.query('DELETE FROM leaderboards WHERE userId = $1', [userId]);
                 
                 console.error(`All 3 attempts failed. Deleted leaderboard entries for userId: ${userId}`);
                 break;
@@ -180,6 +216,7 @@ async function updateAllUsersWeeklyMileage(weekNum) {
 module.exports = {
     userMap,
     weekRanges,
-    updateUserWeeklyMileage
+    updateUserWeeklyMileage,
+    pool
 };
 

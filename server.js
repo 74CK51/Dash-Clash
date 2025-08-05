@@ -4,27 +4,38 @@ const axios = require('axios');
 const qs = require('qs');
 const Database = require('better-sqlite3');
 const app = express();
-const { userMap } = require('./api/strava'); // Import userMap from strava.js
+const { userMap, weekRanges, pool } = require('./api/strava');
 const { team1, team2 } = require('./public/teams');
-const { weekRanges } = require('./api/strava');
-
 
 const PORT = 3000;
 
 app.use(express.static('public')); // serve HTML/JS
 
-const db = new Database('tokens.db');
-const leaderboards_db = new Database('leaderboards.db');
+// const db = new Database('tokens.db');
+// const leaderboards_db = new Database('leaderboards.db');
 
 // Create table if not exists
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS tokens (
-    userId TEXT PRIMARY KEY UNIQUE,
-    access_token TEXT,
-    refresh_token TEXT,
-    expires_at INTEGER
-  )
-`).run();
+async function ensureTables() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tokens (
+      user_id TEXT PRIMARY KEY,
+      access_token TEXT,
+      refresh_token TEXT,
+      expires_at BIGINT
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS leaderboards (
+      user_id TEXT NOT NULL,
+      week_num INTEGER NOT NULL,
+      mileage REAL NOT NULL,
+      moving_time REAL,
+      num_runs INTEGER,
+      PRIMARY KEY (user_id, week_num)
+    );
+  `);
+}
+ensureTables();
 
 app.get('/exchange_token', async (req, res) => {
   const code = req.query.code;
@@ -45,15 +56,20 @@ app.get('/exchange_token', async (req, res) => {
     // TODO: Check if response token is the correct scope --> reroute back to auth if not
 
     // Store in database
-    db.prepare(`
-      INSERT OR REPLACE INTO tokens (userId, access_token, refresh_token, expires_at)
-      VALUES (?, ?, ?, ?)
-    `).run(
-      userId,
-      response.data.access_token,
-      response.data.refresh_token,
-      response.data.expires_at
-    );
+    // db.prepare(`
+    //   INSERT OR REPLACE INTO tokens (userId, access_token, refresh_token, expires_at)
+    //   VALUES (?, ?, ?, ?)
+    // `).run(
+    //   userId,
+    //   response.data.access_token,
+    //   response.data.refresh_token,
+    //   response.data.expires_at
+    // );
+    await pool.query(`
+        INSERT INTO tokens (user_id, access_token, refresh_token, expires_at)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (user_id) DO UPDATE SET access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token, expires_at = EXCLUDED.expires_at    
+    `, [userId, response.data.access_token, response.data.refresh_token, response.data.expires_at]);
 
     res.send('Authorization successful! You can close this window.');
     // TODO: Redirect back to home page or success page
@@ -63,17 +79,26 @@ app.get('/exchange_token', async (req, res) => {
   }
 });
 
-const tokens = db.prepare('SELECT userId FROM tokens').all().map(row => row.userId);
+// const tokens = db.prepare('SELECT userId FROM tokens').all().map(row => row.userId);
+async function getTokens() {
+  const { rows } = await pool.query('SELECT user_id FROM tokens');
+  console.log(rows)
+  console.log(rows.map(row => row.user_id));
+  return rows.map(row => row.user_id);
+}
 
-app.get('/leaderboards', (req, res) => {
+app.get('/leaderboards', async (req, res) => {
     const weekNum = req.query.weekNum;
     const stat = req.query.stat || "mileage"; // Default to mileage if not specified
     const users = Object.keys(userMap);
+    const tokens = await getTokens();
 
     let leaderboardData;
     if (weekNum !== undefined && weekNum !== "") {
         // Leaderboard for a specific week
-        leaderboardData = users.map(userId => {
+        // leaderboardData = users.map(userId => {
+        leaderboardData = await Promise.all(users.map(async userId => {
+
             // Check if user has a token
             const hasToken = tokens.includes(userId);
             if (!hasToken) {
@@ -84,26 +109,33 @@ app.get('/leaderboards', (req, res) => {
                     numRuns: "-"
                 };
             }
-            const result = leaderboards_db.prepare(`
-                SELECT mileage, movingTime, numRuns FROM leaderboards WHERE userId = ? AND weekNum = ?
-            `).get(userId, weekNum);
+            // const result = leaderboards_db.prepare(`
+            //     SELECT mileage, movingTime, numRuns FROM leaderboards WHERE userId = ? AND weekNum = ?
+            // `).get(userId, weekNum);
+            const result = await pool.query(
+                'SELECT mileage, moving_time, num_runs FROM leaderboards WHERE user_id = $1 AND week_num = $2',
+                [userId, weekNum]
+            );
+            const row = result.rows[0];
 
             let pace = "-";
-            if (result?.mileage > 0 && result?.movingTime > 0) {
-                const avgPace = (result.movingTime / 60) / result.mileage; // min/mile
+            if (row?.mileage > 0 && row?.moving_time > 0) {
+                const avgPace = (row.moving_time / 60) / row.mileage; // min/mile
                 pace = formatPace(avgPace);
             }
 
             return {
                 name: userMap[userId],
-                mileage: result?.mileage !== undefined ? result.mileage : 0,
+                mileage: row?.mileage !== undefined ? row.mileage : 0,
                 pace,
-                numRuns: result?.numRuns !== undefined ? result.numRuns : 0
+                numRuns: row?.num_runs !== undefined ? row.num_runs : 0
             };
-        });
+        }));
     } else {
         // All-time leaderboard (sum mileage)
-        leaderboardData = users.map(userId => {
+        // leaderboardData = users.map(userId => {
+        leaderboardData = await Promise.all(users.map(async userId => {
+
             const hasToken = tokens.includes(userId);
             if (!hasToken) {
                 return {
@@ -113,34 +145,40 @@ app.get('/leaderboards', (req, res) => {
                     numRuns: "-"
                 };
             }
-            const result = leaderboards_db.prepare(`
-                SELECT SUM(mileage) as mileage, SUM(movingTime) as movingTime, SUM(numRuns) as numRuns FROM leaderboards WHERE userId = ?
-            `).get(userId);
+            // const result = leaderboards_db.prepare(`
+            //     SELECT SUM(mileage) as mileage, SUM(movingTime) as movingTime, SUM(numRuns) as numRuns FROM leaderboards WHERE userId = ?
+            // `).get(userId);
+            const result = await pool.query(
+                'SELECT SUM(mileage) as mileage, SUM(moving_time) as moving_time, SUM(num_runs) as num_runs FROM leaderboards WHERE user_id = $1',
+                [userId]
+            );
+            const row = result.rows[0];
 
             let pace = "-";
-            if (result?.mileage > 0 && result?.movingTime > 0) {
-                const avgPace = (result.movingTime / 60) / result.mileage; // min/mile
+            if (row?.mileage > 0 && row?.movingTime > 0) {
+                const avgPace = (row.moving_time / 60) / row.mileage; // min/mile
                 pace = formatPace(avgPace);
             }
 
             return {
                 name: userMap[userId],
-                mileage: result?.mileage !== undefined ? result.mileage : 0,
+                mileage: row?.mileage !== undefined ? row.mileage : 0,
                 pace,
-                numRuns: result?.numRuns !== undefined ? result.numRuns : 0       
+                numRuns: row?.numRuns !== undefined ? row.num_runs : 0       
             };
-        });
+        }));
     }
 
     res.json(leaderboardData);
 });
 
-app.get('/team-leaderboard', (req, res) => {
+app.get('/team-leaderboard', async (req, res) => {
     const weekNum = req.query.weekNum;
-    if (weekNum === undefined) return res.status(400).json({ error: "weekNum required" });
+    if (weekNum === undefined) return res.status(400).json({ error: "week_num required" });
+    const tokens = await getTokens();
 
-    const db = new Database('leaderboards.db');
-    function getTeamStats(team) {
+    // const db = new Database('leaderboards.db');
+    async function getTeamStats(team) {
         let total = 0;
         let contributors = [];
         for (const userId of Object.keys(team)) {
@@ -150,10 +188,16 @@ app.get('/team-leaderboard', (req, res) => {
                 contributors.push({ name: team[userId], mileage: "-" });
                 continue;
             }
-            const result = leaderboards_db.prepare(`
-                SELECT mileage FROM leaderboards WHERE userId = ? AND weekNum = ?
-            `).get(userId, weekNum);
-            const mileage = result?.mileage !== undefined ? result.mileage : 0;
+            // const result = leaderboards_db.prepare(`
+            //     SELECT mileage FROM leaderboards WHERE userId = ? AND weekNum = ?
+            // `).get(userId, weekNum);
+            const result = await pool.query(
+                'SELECT mileage FROM leaderboards WHERE user_id = $1 AND week_num = $2',
+                [userId, weekNum]
+            );
+            const row = result.rows[0];
+
+            const mileage = row?.mileage !== undefined ? row.mileage : 0;
             total += mileage;
             contributors.push({ name: team[userId], mileage });
         }
@@ -166,8 +210,8 @@ app.get('/team-leaderboard', (req, res) => {
         return { total, contributors };
     }
 
-    const team1Stats = getTeamStats(team1);
-    const team2Stats = getTeamStats(team2);
+    const team1Stats = await getTeamStats(team1);
+    const team2Stats = await getTeamStats(team2);
 
     res.json({
         weekNum,
@@ -176,28 +220,34 @@ app.get('/team-leaderboard', (req, res) => {
     });
 });
 
-function getTeamTotal(team, weekNum) {
+async function getTeamTotal(team, weekNum) {
     let total = 0;
     for (const userId of Object.keys(team)) {
-        const result = leaderboards_db.prepare(`
-            SELECT mileage FROM leaderboards WHERE userId = ? AND weekNum = ?
-        `).get(userId, weekNum);
-        total += result?.mileage || 0;
+        // const result = leaderboards_db.prepare(`
+        //     SELECT mileage FROM leaderboards WHERE userId = ? AND weekNum = ?
+        // `).get(userId, weekNum);
+        const result = await pool.query(
+            'SELECT mileage FROM leaderboards WHERE user_id = $1 AND week_num = $2',
+            [userId, weekNum]
+        );
+        const row = result.rows[0];
+
+        total += row?.mileage || 0;
     }
     return total;
 }
 
-app.get('/team-history', (req, res) => {
+app.get('/team-history', async (req, res) => {
     const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
     const today = new Date();
 
     let team1Points = 0;
     let team2Points = 0;
 
-    const history = weekNums.map(weekNum => {
-
-        const team1Total = getTeamTotal(team1, weekNum);
-        const team2Total = getTeamTotal(team2, weekNum);
+    // const history = weekNums.map(weekNum => {
+    const history = await Promise.all(weekNums.map(async weekNum => {
+        const team1Total = await getTeamTotal(team1, weekNum);
+        const team2Total = await getTeamTotal(team2, weekNum);
 
         // Only count points if the week has ended
         const weekEnd = new Date(weekRanges[weekNum].end);
@@ -220,7 +270,7 @@ app.get('/team-history', (req, res) => {
             team2: team2Total,
             winner
         };
-    });
+    }));
 
     res.json({
         history,
