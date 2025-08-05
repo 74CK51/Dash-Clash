@@ -66,8 +66,9 @@ async function updateAllUsersUpToToday() {
 }
 
 module.exports = {
-    getCurrentWeekIndex
+    getCurrentWeekIndex,
+    updateAllUsersUpToToday
 }
 
-updateAllUsersUpToToday();
+// updateAllUsersUpToToday();
 

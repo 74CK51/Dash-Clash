@@ -6,7 +6,7 @@ const Database = require('better-sqlite3');
 const app = express();
 const { userMap, weekRanges, pool } = require('./api/strava');
 const { team1, team2 } = require('./public/teams');
-
+const { updateAllUsersUpToToday } = require('./public/update-all-weeks');
 const PORT = 3000;
 
 app.use(express.static('public')); // serve HTML/JS
@@ -71,7 +71,10 @@ app.get('/exchange_token', async (req, res) => {
         ON CONFLICT (user_id) DO UPDATE SET access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token, expires_at = EXCLUDED.expires_at    
     `, [userId, response.data.access_token, response.data.refresh_token, response.data.expires_at]);
 
-    res.send('Authorization successful! You can close this window.');
+    // res.send('Authorization successful! You can close this window.');
+    updateAllUsersUpToToday()
+    res.redirect('/'); // Redirect to home page after successful token exchange
+
     // TODO: Redirect back to home page or success page
   } catch (err) {
     console.error(err.response?.data || err);
@@ -82,8 +85,6 @@ app.get('/exchange_token', async (req, res) => {
 // const tokens = db.prepare('SELECT userId FROM tokens').all().map(row => row.userId);
 async function getTokens() {
   const { rows } = await pool.query('SELECT user_id FROM tokens');
-  console.log(rows)
-  console.log(rows.map(row => row.user_id));
   return rows.map(row => row.user_id);
 }
 
