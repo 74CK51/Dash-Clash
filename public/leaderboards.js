@@ -79,7 +79,13 @@ function loadLeaderboard(weekNum = "", stat = "mileage") {
 
 
     const mileageFirst = getFirst('mileage');
-    document.getElementById('firstMileage').textContent = mileageFirst === "-" ? "-" : `${mileageFirst} MILES`;
+    if (mileageFirst === "-") {
+      document.getElementById('firstMileage').textContent = "-";
+    } else {
+      // Round all mileage values in the string to 2 decimals
+      const roundedMileage = mileageFirst.replace(/(\d+\.\d+)/g, m => Number(m).toFixed(2));
+      document.getElementById('firstMileage').textContent = `${roundedMileage} MILES`;
+    }
 
     const paceFirst = getFirst('pace', true);
     document.getElementById('firstPace').textContent = paceFirst === "-" ? "-" : `${paceFirst} MIN/MILE`;
@@ -93,10 +99,14 @@ function loadLeaderboard(weekNum = "", stat = "mileage") {
     data.forEach((user, index) => {
       const row = document.createElement('div');
       row.classList.add('leaderboard-row');
+      let statValue = user[stat];
+      if (stat === "mileage" && statValue !== "-" && statValue !== undefined) {
+        statValue = Number(statValue).toFixed(2);
+      }
       row.innerHTML = `
         <span class="place-col">${index + 1}</span>
         <span class="name-col">${user.name}</span>
-        <span class="stat-col">${user[stat]}</span>
+        <span class="stat-col">${statValue}</span>
       `;
       leaderboard.appendChild(row);
     });
