@@ -67,13 +67,15 @@ function loadLeaderboard(weekNum = "", stat = "mileage") {
           valid.sort((a, b) => paceToSeconds(a.pace) - paceToSeconds(b.pace));
           const topSeconds = paceToSeconds(valid[0].pace);
           const winners = valid.filter(u => paceToSeconds(u.pace) === topSeconds);
-          return winners.map(u => `${u.name} - ${u.pace}`).join(", ");
+          const names = winners.map(u => u.name).join(", ");
+          return winners.length > 0 ? `${names} - ${winners[0].pace}` : "-";
         } else {
           valid.sort((a, b) => b[stat] - a[stat]);
           const topVal = valid[0][stat];
           if (topVal === 0) return "-";
           const winners = valid.filter(u => u[stat] === topVal);
-          return winners.map(u => `${u.name} - ${u[stat]}`).join(", ");
+          const names = winners.map(u => u.name).join(", ");
+          return winners.length > 0 ? `${names} - ${topVal}` : "-";
         }
       }
 
@@ -93,6 +95,7 @@ function loadLeaderboard(weekNum = "", stat = "mileage") {
     const numRunsFirst = getFirst('numRuns');
     document.getElementById('firstNumRuns').textContent = numRunsFirst === "-" ? "-" : `${numRunsFirst} RUNS`;
 
+    
     const leaderboard = document.getElementById('leaderboard');
     leaderboard.innerHTML = "";
 

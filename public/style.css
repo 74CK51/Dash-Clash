@@ -383,15 +383,16 @@ nav a {
 .stat-col {
   text-align: right;
   padding-right: 10px;
+  white-space: nowrap;
 }
 
 .leaderboard-titles {
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 64px;
+  flex-direction: column;   /* Stack rows vertically */
+  align-items: center;      /* Center all rows horizontally */
+  gap: 0;                   /* Remove extra gap between rows */
   margin: 32px 0 24px 0;
-  flex-wrap: wrap;
+  margin-bottom: 30px;
 }
 
 .title-card {
@@ -420,6 +421,21 @@ nav a {
   margin-bottom: 0;
   margin-top: 0;
 }
+
+.title-row {
+  display: flex;
+  flex-direction: row;      /* Row for title cards */
+  justify-content: center;
+  gap: 40px;
+  margin-bottom: 10px;
+}
+
+.center-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+}
+
 /* 
 .title-card:last-child .title-winner {
   color: #a00aa0;
