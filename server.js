@@ -218,7 +218,7 @@ app.get('/team-leaderboard', async (req, res) => {
             return b.mileage - a.mileage;
         });
 
-        return { total, contributors };
+        return { total: Number(total).toFixed(2), contributors };
     }
 
     const team1Stats = await getTeamStats(team1);

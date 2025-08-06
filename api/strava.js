@@ -147,11 +147,6 @@ async function updateUserWeeklyMileage(userId, weekNum) {
         return false;
     }
 
-    // If end is in the future, set it to today
-    if (new Date(end) > today) {
-        end = todayStr;
-    }
-
     const startUnix = Math.floor(new Date(start).getTime() / 1000);
     const endUnix = Math.floor(new Date(end).getTime() / 1000);
 
@@ -170,6 +165,7 @@ async function updateUserWeeklyMileage(userId, weekNum) {
             });
 
             const activities = response.data;
+            // console.log(response.data);
             const totalMiles = activities
             .filter(activity => activity.type === 'Run')
             .reduce((sum, activity) => sum + activity.distance, 0) / 1609.34;
