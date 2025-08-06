@@ -157,7 +157,7 @@ app.get('/leaderboards', async (req, res) => {
             const row = result.rows[0];
 
             let pace = "-";
-            if (row?.mileage > 0 && row?.movingTime > 0) {
+            if (row?.mileage > 0 && row?.moving_time > 0) {
                 const avgPace = (row.moving_time / 60) / row.mileage; // min/mile
                 pace = formatPace(avgPace);
             }
@@ -166,7 +166,7 @@ app.get('/leaderboards', async (req, res) => {
                 name: userMap[userId],
                 mileage: row?.mileage !== undefined ? row.mileage : 0,
                 pace,
-                numRuns: row?.numRuns !== undefined ? row.num_runs : 0       
+                numRuns: row?.num_runs !== undefined ? row.num_runs : 0       
             };
         }));
     }
