@@ -70,5 +70,8 @@ module.exports = {
     updateAllUsersUpToToday
 }
 
-// updateAllUsersUpToToday();
+if (require.main === module) {
+  // Only runs if called directly: `node public/update-all-weeks.js`
+  updateAllUsersUpToToday();
+}
 
