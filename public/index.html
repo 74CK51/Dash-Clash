@@ -188,9 +188,9 @@ function updateHistoryCarousel() {
   } else {
     document.getElementById('historyContent').innerHTML = `
       <strong>Week ${week.weekNum}:</strong>
-      <span style="${team1Style}">Team 1: ${week.team1} miles</span>
+      <span style="${team1Style}">Team 1: ${week.team1.toFixed(2)} miles</span>
       &nbsp;|&nbsp;
-      <span style="${team2Style}">Team 2: ${week.team2} miles</span>
+      <span style="${team2Style}">Team 2: ${week.team2.toFixed(2)} miles</span>
     `;
   }
   document.getElementById('nextWeek').disabled = currentHistoryIndex === historyData.length - 1;
