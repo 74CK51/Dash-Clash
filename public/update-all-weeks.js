@@ -1,22 +1,7 @@
 const path = require('path');
 
 const stravaPath = path.resolve(__dirname, '../api', 'strava');
-const { updateUserWeeklyMileage, userMap, weekRanges } = require(stravaPath); // adjust path as needed
-
-// async function getCurrentWeekIndex() {
-//   const today = new Date();
-
-//   for (let weekNum = 0; weekNum <= Object.keys(weekRanges).length - 1; weekNum++) {
-//     const { start, end } = weekRanges[weekNum];
-//     const startDate = new Date(start);
-//     const endDate = new Date(end);
-
-//     if (today >= startDate && today <= endDate) {
-//       return weekNum;
-//     }
-//   }
-//   return null; // No current week found
-// }
+const { updateAllUsersWeeklyMileage, userMap, weekRanges } = require(stravaPath); // adjust path as needed
 
 function getCurrentWeekIndex() {
   const today = new Date();
@@ -46,19 +31,19 @@ async function updateAllUsersUpToToday() {
   const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
 
   for (let weekNum of weekNums) {
-    console.log(`📆 Updating week ${weekNum}...`);
-    let shouldContinue = true;
-    for (const userId of Object.keys(userMap)) {
-      console.log(`↳ ${userMap[userId]} (userId: ${userId})`);
-      const result = await updateUserWeeklyMileage(userId, weekNum);
-      if (result === false) {
-        shouldContinue = false;
-        break;
-      }
-    }
-    if (!shouldContinue) {
+    const { start } = weekRanges[weekNum];
+    const today = new Date();
+    if (new Date(start) > today) {
       console.log(`🛑 Stopped at week ${weekNum} (future week detected).`);
       break;
+    }
+
+    console.log(`📆 Updating week ${weekNum}...`);
+    try {
+      await updateAllUsersWeeklyMileage(weekNum);
+    } catch (err) {
+      console.error(`❌ Errors occurred while updating week ${weekNum}:`, err.message || err);
+      // Continue to next week unless you want to break here on error
     }
   }
 
@@ -71,7 +56,11 @@ module.exports = {
 }
 
 if (require.main === module) {
-  // Only runs if called directly: `node public/update-all-weeks.js`
-  updateAllUsersUpToToday();
+  updateAllUsersUpToToday()
+    .then(() => process.exit(0))
+    .catch(err => {
+      console.error(err);
+      process.exit(1);
+    });
 }
 
