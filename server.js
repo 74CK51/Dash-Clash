@@ -297,8 +297,15 @@ app.get('/weekRanges', (req, res) => {
 
 function formatPace(pace) {
   if (pace === null || pace === undefined || isNaN(pace)) return "-";
-  const min = Math.floor(pace);
-  const sec = Math.round((pace - min) * 60);
+  
+  let min = Math.floor(pace);
+  let sec = Math.round((pace - min) * 60);
+
+  if (sec === 60) {
+    min += 1;
+    sec = 0;
+  }
+
   return `${min}:${sec.toString().padStart(2, '0')}`;
 }
 

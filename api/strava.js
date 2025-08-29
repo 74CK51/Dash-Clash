@@ -97,15 +97,6 @@ async function refreshToken(userId) {
             refresh_token: token.refresh_token
         });
 
-        // db.prepare(`
-        //     INSERT OR REPLACE INTO tokens (userId, access_token, refresh_token, expires_at)
-        //     VALUES (?, ?, ?, ?)
-        // `).run(
-        //     userId,
-        //     response.data.access_token,
-        //     response.data.refresh_token,
-        //     response.data.expires_at
-        // );
         await pool.query(`
             INSERT INTO tokens (user_id, access_token, refresh_token, expires_at)
             VALUES ($1, $2, $3, $4)
@@ -115,8 +106,8 @@ async function refreshToken(userId) {
         console.log('Token was refreshed');
         return true;
     } catch (err) {
-        // db.prepare('DELETE FROM tokens WHERE userId = ?').run(userId);
-        await pool.query('DELETE FROM tokens WHERE user_id = $1', [userId]);
+      // NOTE: No longer deleting tokens on refresh token failure as failures sometimes occur due to transient issues (rate limits)
+      // await pool.query('DELETE FROM tokens WHERE user_id = $1', [userId]);
 
         console.error('Error refreshing token:', err.response?.data || err);
         return false;
@@ -130,7 +121,6 @@ async function refreshToken(userId) {
 
 async function updateUserWeeklyMileage(userId, weekNum) {
     await refreshToken(userId);
-    // const token = db.prepare('SELECT userId, access_token, refresh_token, expires_at FROM tokens WHERE userId = ?').get(userId);
     const { rows } = await pool.query('SELECT user_id, access_token, refresh_token, expires_at FROM tokens WHERE user_id = $1', [userId]);
     const token = rows[0];
 
@@ -165,7 +155,6 @@ async function updateUserWeeklyMileage(userId, weekNum) {
             });
 
             const activities = response.data;
-            // console.log(response.data);
             const totalMiles = activities
             .filter(activity => activity.type === 'Run')
             .reduce((sum, activity) => sum + activity.distance, 0) / 1609.34;
@@ -177,17 +166,13 @@ async function updateUserWeeklyMileage(userId, weekNum) {
 
             const numRuns = activities.filter(activity => activity.type === 'Run').length;
 
-            // leaderboards_db.prepare(`
-            //     INSERT INTO leaderboards (userId, weekNum, mileage, movingTime, numRuns)
-            //     VALUES (?, ?, ?, ?, ?)
-            //     ON CONFLICT(userId, weekNum) DO UPDATE SET mileage = excluded.mileage, movingTime = excluded.movingTime, numRuns = excluded.numRuns;
-            // `).run(userId, weekNum, totalMilesRounded, totalMovingTime, numRuns);
             await pool.query(`
                 INSERT into leaderboards(user_id, week_num, mileage, moving_time, num_runs)
                 VALUES ($1, $2, $3, $4, $5)
                 ON CONFLICT (user_id, week_num) DO UPDATE SET mileage = EXCLUDED.mileage, moving_time = EXCLUDED.moving_time, num_runs = EXCLUDED.num_runs
             `, [userId, weekNum, totalMilesRounded, totalMovingTime, numRuns]);
             
+            console.log(`Week ${weekNum} mileage for ${userMap[userId]} (${userId}): ${totalMilesRounded} miles over ${numRuns} run(s)`);
             break;
 
         } catch (err) {
@@ -195,31 +180,42 @@ async function updateUserWeeklyMileage(userId, weekNum) {
             console.error('Error fetching activities', err.response?.data || err);
 
             if (attempts == 3) {
-                // leaderboards_db.prepare(`
-                //     DELETE FROM leaderboards WHERE userId = ?
-                // `).run(userId); 
-                await pool.query('DELETE FROM leaderboards WHERE userId = $1', [userId]);
+              // NOTE: No longer deleting leaderboard entries on retrieval failure as failures sometimes occur due to transient issues (rate limits)
+              // await pool.query('DELETE FROM leaderboards WHERE user_id = $1', [userId]);
                 
-                console.error(`All 3 attempts failed. Deleted leaderboard entries for userId: ${userId}`);
-                break;
+              console.error(`All 3 attempts for activity access failed for userId: ${userId}`);
+              return false;
             }
             
-            // Delay before retry
-            await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
         }
     }
+    return true;
 }
 
 async function updateAllUsersWeeklyMileage(weekNum) {
+    const errors = [];
     for (const userId of Object.keys(userMap)) {
-        await updateUserWeeklyMileage(userId, weekNum);
+
+        try {
+            console.log(`↳ ${userMap[userId]} (userId: ${userId})`);
+            await updateUserWeeklyMileage(userId, weekNum);
+
+        } catch (err) {
+            errors.push({ userId, error: err });
+            console.error(`Failed for user ${userId}:`, err.message || err);
+        }
+    }
+    if (errors.length > 0) {
+        throw new Error(`Failed to update ${errors.length} user(s): ` +
+            errors.map(e => `${userMap[e.userId]} (${e.userId})`).join(', '));
     }
 }
 
 module.exports = {
     userMap,
     weekRanges,
-    updateUserWeeklyMileage,
+    updateAllUsersWeeklyMileage,
     pool
 };
 
