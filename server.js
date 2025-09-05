@@ -294,7 +294,7 @@ app.get('/strava-webhook', (req, res) => {
   }
 });
 
-app.post('/strava-webhook', (req, res) => {
+app.post('/strava-webhook', express.json(), (req, res) => {
 
   // Handle activity events
   const event = req.body;
