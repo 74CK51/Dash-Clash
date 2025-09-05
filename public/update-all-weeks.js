@@ -64,7 +64,7 @@ async function updateUserUpToToday(userId) {
 
     console.log(`📆 Updating week ${weekNum}...`);
     try {
-      await updateUserWeeklyMileage(weekNum);
+      await updateUserWeeklyMileage(userId, weekNum);
     } catch (err) {
       console.error(`❌ Errors occurred while updating week ${weekNum}:`, err.message || err);
       // Continue to next week unless you want to break here on error
@@ -81,7 +81,7 @@ module.exports = {
 }
 
 if (require.main === module) {
-  updateUserUpToToday(83165490)
+  updateAllUsersUpToToday()
     .then(() => process.exit(0))
     .catch(err => {
       console.error(err);
