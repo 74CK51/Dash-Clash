@@ -71,7 +71,7 @@ app.get('/exchange_token', async (req, res) => {
     `, [userId, response.data.access_token, response.data.refresh_token, response.data.expires_at]);
 
     // res.send('Authorization successful! You can close this window.');
-    // updateAllUsersUpToToday()
+    updateAllUsersUpToToday()
     res.redirect('/'); // Redirect to home page after successful token exchange
 
     // TODO: Redirect back to home page or success page
