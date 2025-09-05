@@ -38,6 +38,17 @@ async function ensureTables() {
 ensureTables();
 
 app.get('/exchange_token', async (req, res) => {
+    const scope = req.query.scope;
+    console.log("Scope:", scope);
+    if (!scope || !scope.split(',').includes('activity:read_all')) {
+        return res.send(`
+            <h2>Authorization Failed</h2>
+            <p>You did not grant the required <b>activity:read_all</b> permission. Please try again and ensure you check all requested boxes.</p>
+            <a href="/">Return to homepage</a>
+        `);
+    }
+
+
   const code = req.query.code;
   if (!code) return res.status(400).send('No code provided');
 
@@ -53,18 +64,6 @@ app.get('/exchange_token', async (req, res) => {
     const athlete = response.data.athlete;
     const userId = String(athlete.id);
 
-    // TODO: Check if response token is the correct scope --> reroute back to auth if not
-
-    // Store in database
-    // db.prepare(`
-    //   INSERT OR REPLACE INTO tokens (userId, access_token, refresh_token, expires_at)
-    //   VALUES (?, ?, ?, ?)
-    // `).run(
-    //   userId,
-    //   response.data.access_token,
-    //   response.data.refresh_token,
-    //   response.data.expires_at
-    // );
     await pool.query(`
         INSERT INTO tokens (user_id, access_token, refresh_token, expires_at)
         VALUES ($1, $2, $3, $4)
@@ -72,7 +71,7 @@ app.get('/exchange_token', async (req, res) => {
     `, [userId, response.data.access_token, response.data.refresh_token, response.data.expires_at]);
 
     // res.send('Authorization successful! You can close this window.');
-    updateAllUsersUpToToday()
+    // updateAllUsersUpToToday()
     res.redirect('/'); // Redirect to home page after successful token exchange
 
     // TODO: Redirect back to home page or success page
@@ -82,7 +81,6 @@ app.get('/exchange_token', async (req, res) => {
   }
 });
 
-// const tokens = db.prepare('SELECT userId FROM tokens').all().map(row => row.userId);
 async function getTokens() {
   const { rows } = await pool.query('SELECT user_id FROM tokens');
   return rows.map(row => row.user_id);
@@ -110,9 +108,6 @@ app.get('/leaderboards', async (req, res) => {
                     numRuns: "-"
                 };
             }
-            // const result = leaderboards_db.prepare(`
-            //     SELECT mileage, movingTime, numRuns FROM leaderboards WHERE userId = ? AND weekNum = ?
-            // `).get(userId, weekNum);
             const result = await pool.query(
                 'SELECT mileage, moving_time, num_runs FROM leaderboards WHERE user_id = $1 AND week_num = $2',
                 [userId, weekNum]
@@ -147,9 +142,6 @@ app.get('/leaderboards', async (req, res) => {
                     numRuns: "-"
                 };
             }
-            // const result = leaderboards_db.prepare(`
-            //     SELECT SUM(mileage) as mileage, SUM(movingTime) as movingTime, SUM(numRuns) as numRuns FROM leaderboards WHERE userId = ?
-            // `).get(userId);
             const result = await pool.query(
                 'SELECT SUM(mileage) as mileage, SUM(moving_time) as moving_time, SUM(num_runs) as num_runs FROM leaderboards WHERE user_id = $1',
                 [userId]
@@ -179,7 +171,6 @@ app.get('/team-leaderboard', async (req, res) => {
     if (weekNum === undefined) return res.status(400).json({ error: "week_num required" });
     const tokens = await getTokens();
 
-    // const db = new Database('leaderboards.db');
     async function getTeamStats(team) {
     const userIds = Object.keys(team);
     const tokensSet = new Set(await getTokens()); // no need to loop later
@@ -234,9 +225,6 @@ app.get('/team-leaderboard', async (req, res) => {
 async function getTeamTotal(team, weekNum) {
     let total = 0;
     for (const userId of Object.keys(team)) {
-        // const result = leaderboards_db.prepare(`
-        //     SELECT mileage FROM leaderboards WHERE userId = ? AND weekNum = ?
-        // `).get(userId, weekNum);
         const result = await pool.query(
             'SELECT mileage FROM leaderboards WHERE user_id = $1 AND week_num = $2',
             [userId, weekNum]
