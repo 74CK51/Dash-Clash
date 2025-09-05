@@ -216,6 +216,7 @@ module.exports = {
     userMap,
     weekRanges,
     updateAllUsersWeeklyMileage,
+    updateUserWeeklyMileage,
     pool
 };
 

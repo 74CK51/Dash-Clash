@@ -6,7 +6,7 @@ const Database = require('better-sqlite3');
 const app = express();
 const { userMap, weekRanges, pool } = require('./api/strava');
 const { team1, team2 } = require('./public/teams');
-const { updateAllUsersUpToToday } = require('./public/update-all-weeks');
+const { updateAllUsersUpToToday, updateUserUpToToday } = require('./public/update-all-weeks');
 const PORT = 3000;
 
 app.use(express.static('public')); // serve HTML/JS
@@ -71,7 +71,7 @@ app.get('/exchange_token', async (req, res) => {
     `, [userId, response.data.access_token, response.data.refresh_token, response.data.expires_at]);
 
     // res.send('Authorization successful! You can close this window.');
-    updateAllUsersUpToToday()
+    updateUserUpToToday(userId).catch(err => console.error("Error updating user after auth:", err));
     res.redirect('/'); // Redirect to home page after successful token exchange
 
     // TODO: Redirect back to home page or success page
@@ -281,6 +281,42 @@ app.get('/team-history', async (req, res) => {
 // To communicate week ranges index.html
 app.get('/weekRanges', (req, res) => {
   res.json(weekRanges);
+});
+
+app.get('/strava-webhook', (req, res) => {
+  // Strava sends a verification challenge for subscription setup
+  if (req.query['hub.mode'] === 'subscribe' && req.query['hub.verify_token'] === 'NGG') {
+    return res.json({
+      'hub.challenge': req.query['hub.challenge']
+    });
+  } else {
+    return res.status(400).send('Invalid verification request');
+  }
+});
+
+app.post('/strava-webhook', (req, res) => {
+
+  // Handle activity events
+  const event = req.body;
+  console.log('Received Strava webhook event:', event);
+  res.status(200).send('Event received'); // Acknowledge receipt
+
+  // Only process activity events
+  if (event.object_type === 'activity') {
+    const athleteId = String(event.owner_id);
+    // Optionally, you can get the activity ID: event.object_id
+
+    // Call your update logic for this athlete
+    try {
+      // You may want to determine the correct weekNum here
+      // For now, update all weeks for this athlete
+      updateUserUpToToday(athleteId);
+    } catch (err) {
+      console.error('Error updating athlete stats:', err);
+    }
+  } else {
+    console.log('Ignoring non-activity event');
+  }
 });
 
 function formatPace(pace) {
