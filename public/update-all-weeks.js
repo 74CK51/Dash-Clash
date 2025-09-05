@@ -1,7 +1,7 @@
 const path = require('path');
 
 const stravaPath = path.resolve(__dirname, '../api', 'strava');
-const { updateAllUsersWeeklyMileage, userMap, weekRanges } = require(stravaPath); // adjust path as needed
+const { updateAllUsersWeeklyMileage, updateUserWeeklyMileage, userMap, weekRanges } = require(stravaPath); // adjust path as needed
 
 function getCurrentWeekIndex() {
   const today = new Date();
@@ -50,13 +50,38 @@ async function updateAllUsersUpToToday() {
   console.log("✅ All valid weeks up to today have been updated.");
 }
 
+async function updateUserUpToToday(userId) {
+  console.log(`🔄 Updating all weeks for userId: ${userId} (${userMap[userId]})`);
+  const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
+
+  for (let weekNum of weekNums) {
+    const { start } = weekRanges[weekNum];
+    const today = new Date();
+    if (new Date(start) > today) {
+      console.log(`🛑 Stopped at week ${weekNum} (future week detected).`);
+      break;
+    }
+
+    console.log(`📆 Updating week ${weekNum}...`);
+    try {
+      await updateUserWeeklyMileage(weekNum);
+    } catch (err) {
+      console.error(`❌ Errors occurred while updating week ${weekNum}:`, err.message || err);
+      // Continue to next week unless you want to break here on error
+    }
+  }
+
+  console.log("✅ All valid weeks up to today have been updated.");
+}
+
 module.exports = {
     getCurrentWeekIndex,
-    updateAllUsersUpToToday
+    updateAllUsersUpToToday,
+    updateUserUpToToday
 }
 
 if (require.main === module) {
-  updateAllUsersUpToToday()
+  updateUserUpToToday(83165490)
     .then(() => process.exit(0))
     .catch(err => {
       console.error(err);
