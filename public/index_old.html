@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Strava Race Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header style="display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: #f7f7f7;">
+  <div style="display: flex; align-items: center;">
+    <a href="/" style="text-decoration: none;">
+      <img src="images/dashclash_logo.png" alt="Logo" style="height: 60px; margin-right: 10px;">
+    </a>
+  </div>
+  <nav style="display: flex; gap: 20px;">
+    <a href="leaderboards.html" style="text-decoration: none; color: #333;">Leaderboards</a>
+    <a href="http://www.strava.com/oauth/mobile/authorize?client_id=84396&response_type=code&redirect_uri=https://dash-clash.onrender.com/exchange_token&scope=activity:read_all" class="connect-button">CONNECT</a> 
+  </nav>
+</header>
+
+<!-- <div class="score-bar-bg"> -->
+  <div class="content-container">
+    <div class="score-bar">
+      <div class="score-box team1-score" id="team1OverallScore">-</div>
+      <div class="score-center" id="teamScoresWeek"></div>
+      <div class="score-box team2-score" id="team2OverallScore">-</div>
+    </div>
+  </div>
+<!-- </div> -->
+
+<div class="content-container">
+  <div class="main-rectangle">
+    <!-- Your main content goes here -->
+
+
+<div id="timer" style="margin: 20px 0; font-size: 1.2em; color: #c00;"></div>
+<div id="teamLeaderboard"></div>
+
+<div id="historyCarousel">
+  <button id="prevWeek" class="carousel-btn">
+  <img src="images/arrow-left.png" alt="Previous" style="height:50px;width:50px;">
+</button>
+  <span id="historyContent"></span>
+  <button id="nextWeek" class="carousel-btn">
+  <img src="images/arrow-right.png" alt="Next" style="height:50px;width:50px;">
+</button>
+</div>
+
+<!-- <div id="overallScore" style="font-size: 1.5em; font-weight: bold; margin: 20px 0;"></div> -->
+
+<script>
+// Fetch weekRanges from backend
+fetch('/weekRanges')
+  .then(res => res.json())
+  .then(weekRanges => {
+    function getCurrentWeekIndex() {
+      const today = new Date();
+      const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
+
+      for (let weekNum of weekNums) {
+        const { start, end } = weekRanges[weekNum];
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        if (today >= startDate && today <= endDate) {
+          return weekNum;
+        }
+      }
+      // If before all weeks
+      const firstWeekStart = new Date(weekRanges[weekNums[0]].start);
+      if (today < firstWeekStart) return "before";
+      // If after all weeks
+      const lastWeekNum = weekNums[weekNums.length - 1];
+      const lastWeekEnd = new Date(weekRanges[lastWeekNum].end);
+      if (today > lastWeekEnd) return "after";
+      return null;
+    }
+
+    function showTimerToFirstWeek() {
+      const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
+      const firstWeekStart = new Date(weekRanges[weekNums[0]].start);
+      const timerDiv = document.getElementById('timer');
+      function updateTimer() {
+        const now = new Date();
+        const diff = firstWeekStart - now;
+        if (diff <= 0) {
+          timerDiv.textContent = '';
+          location.reload();
+          return;
+        }
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((diff / (1000 * 60)) % 60);
+        const seconds = Math.floor((diff / 1000) % 60);
+        timerDiv.textContent = `First week starts in ${days}d ${hours}h ${minutes}m ${seconds}s`;
+      }
+      updateTimer();
+      setInterval(updateTimer, 1000);
+    }
+
+    function loadTeamLeaderboard(weekNum) {
+      document.getElementById('timer').textContent = '';
+      fetch(`/team-leaderboard?weekNum=${weekNum}`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('teamScoresWeek').textContent = `TEAM SCORES (WEEK ${data.weekNum})`;
+          document.getElementById('teamLeaderboard').innerHTML = `
+            <div class="leaderboard-main">
+              <div class="leaderboard-miles-row">
+                <span class="leaderboard-miles team1">${data.team1.total}</span>
+                <span class="leaderboard-miles-vs">vs</span>
+                <span class="leaderboard-miles team2">${data.team2.total}</span>
+              </div>
+              <div class="leaderboard-contributors-row">
+                <div class="leaderboard-col team1">
+                  ${data.team1.contributors.map(u => `
+                    <div class="contributor">
+                      <span class="contributor-name">${u.name}</span>
+                      <span class="contributor-miles">${u.mileage}</span>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="leaderboard-col team2">
+                  ${data.team2.contributors.map(u => `
+                    <div class="contributor">
+                      <span class="contributor-name">${u.name}</span>
+                      <span class="contributor-miles">${u.mileage}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+        });
+    }
+
+    function handleLeaderboardDisplay() {
+      const weekIndex = getCurrentWeekIndex();
+      if (weekIndex === "before") {
+        document.getElementById('teamLeaderboard').innerHTML = '';
+        showTimerToFirstWeek();
+      } else if (weekIndex === "after") {
+        // Show last week
+        const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
+        loadTeamLeaderboard(weekNums[weekNums.length - 1]);
+      } else if (typeof weekIndex === "number") {
+        loadTeamLeaderboard(weekIndex);
+      } else {
+        document.getElementById('teamLeaderboard').innerHTML = 'No leaderboard available.';
+      }
+    }
+    handleLeaderboardDisplay();
+    setInterval(handleLeaderboardDisplay, 5000);
+  });
+</script>
+
+
+<script>
+let historyData = [];
+let currentHistoryIndex = 0;
+let team1Points = 0;
+let team2Points = 0;
+
+function updateHistoryCarousel() {
+  if (!historyData.length) return;
+  const week = historyData[currentHistoryIndex];
+
+  let team1Color = '#007bff';
+  let team2Color = '#fc0202';
+
+  // Determine leading team color
+  let team1Style = `color: ${team1Color}; font-weight: bold;`;
+  let team2Style = `color: ${team2Color}; font-weight: bold;`;
+
+  if (week.team1 > week.team2) {
+    team1Style += 'text-decoration: underline;';
+    team2Style += 'opacity: 0.5;';
+  } else if (week.team2 > week.team1) {
+    team2Style += 'text-decoration: underline;';
+    team1Style += 'opacity: 0.5;';
+  }
+
+  if (week.isTotal) {
+    document.getElementById('historyContent').innerHTML = `
+      <strong>Total (All Time):</strong>
+      <span style="${team1Style}">Team 1: ${week.team1.toFixed(2)} miles</span>
+      &nbsp;|&nbsp;
+      <span style="${team2Style}">Team 2: ${week.team2.toFixed(2)} miles</span>
+    `;
+  } else {
+    document.getElementById('historyContent').innerHTML = `
+      <strong>Week ${week.weekNum}:</strong>
+      <span style="${team1Style}">Team 1: ${week.team1.toFixed(2)} miles</span>
+      &nbsp;|&nbsp;
+      <span style="${team2Style}">Team 2: ${week.team2.toFixed(2)} miles</span>
+    `;
+  }
+  document.getElementById('nextWeek').disabled = currentHistoryIndex === historyData.length - 1;
+  document.getElementById('prevWeek').disabled = currentHistoryIndex === 0;
+}
+
+Promise.all([
+  fetch('/team-history').then(res => res.json()),
+  fetch('/weekRanges').then(res => res.json())
+]).then(([{ history, team1Points: t1, team2Points: t2 }, weekRanges]) => {
+  team1Points = t1;
+  team2Points = t2;
+
+  // Show overall score
+  // document.getElementById('overallScore').textContent = `Overall Score: ${team1Points} - ${team2Points}`;
+  document.getElementById('team1OverallScore').textContent = team1Points;
+  document.getElementById('team2OverallScore').textContent = team2Points;
+
+  const today = new Date();
+  const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
+  let lastIndex = weekNums.length - 1;
+
+  for (let i = 0; i < weekNums.length; i++) {
+    const { start, end } = weekRanges[weekNums[i]];
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (today >= startDate && today <= endDate) {
+      lastIndex = i;
+      break;
+    }
+    if (today < startDate) {
+      lastIndex = i - 1;
+      break;
+    }
+  }
+
+  const filteredHistory = history.slice(0, lastIndex + 1).reverse();
+
+  const total = filteredHistory.reduce(
+    (acc, week) => ({
+      isTotal: true,
+      team1: acc.team1 + week.team1,
+      team2: acc.team2 + week.team2
+    }),
+    { isTotal: true, team1: 0, team2: 0 }
+  );
+
+  // Round totals
+  total.team1 = Number(total.team1.toFixed(2));
+  total.team2 = Number(total.team2.toFixed(2));
+
+  historyData = [total, ...filteredHistory];
+
+  if (!filteredHistory.length) {
+    document.getElementById('historyCarousel').style.display = 'none';
+    return;
+  }
+
+  currentHistoryIndex = 0;
+  updateHistoryCarousel();
+});
+
+document.getElementById('nextWeek').onclick = function() {
+  if (currentHistoryIndex < historyData.length - 1) {
+    currentHistoryIndex++;
+    updateHistoryCarousel();
+  }
+};
+document.getElementById('prevWeek').onclick = function() {
+  if (currentHistoryIndex > 0) {
+    currentHistoryIndex--;
+    updateHistoryCarousel();
+  }
+};
+</script>
+</div>
+
+</body>
+</html>
+

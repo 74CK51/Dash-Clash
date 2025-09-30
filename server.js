@@ -5,7 +5,7 @@ const qs = require('qs');
 const Database = require('better-sqlite3');
 const app = express();
 const { userMap, weekRanges, pool } = require('./api/strava');
-const { team1, team2 } = require('./public/teams');
+const { team1, getTeam2ForWeek } = require('./public/teams');
 const { updateAllUsersUpToToday, updateUserUpToToday } = require('./public/update-all-weeks');
 const PORT = 3000;
 
@@ -89,13 +89,15 @@ async function getTokens() {
 app.get('/leaderboards', async (req, res) => {
     const weekNum = req.query.weekNum;
     const stat = req.query.stat || "mileage"; // Default to mileage if not specified
-    const users = Object.keys(userMap);
+    // const users = Object.keys(userMap);
+    users = Array.from(new Set([
+            ...Object.keys(team1),
+            ...Object.keys(getTeam2ForWeek(weekNum))
+        ]));
     const tokensSet = new Set(await getTokens()); // no need to loop later
 
     let leaderboardData;
     if (weekNum !== undefined && weekNum !== "") {
-        // Leaderboard for a specific week
-        // leaderboardData = users.map(userId => {
         leaderboardData = await Promise.all(users.map(async userId => {
 
             hasToken = tokensSet.has(userId);
@@ -172,48 +174,49 @@ app.get('/team-leaderboard', async (req, res) => {
     const tokens = await getTokens();
 
     async function getTeamStats(team) {
-    const userIds = Object.keys(team);
-    const tokensSet = new Set(await getTokens()); // no need to loop later
-    
-    const result = await pool.query(
-        'SELECT user_id, mileage FROM leaderboards WHERE user_id = ANY($1) AND week_num = $2',
-        [userIds, weekNum]
-    );
+      const userIds = Object.keys(team);
+      const tokensSet = new Set(await getTokens()); // no need to loop later
+      
+      const result = await pool.query(
+          'SELECT user_id, mileage FROM leaderboards WHERE user_id = ANY($1) AND week_num = $2',
+          [userIds, weekNum]
+      );
 
-    const mileageMap = new Map();
-        for (const row of result.rows) {
-            mileageMap.set(row.user_id, row.mileage);
-        }
+      const mileageMap = new Map();
+          for (const row of result.rows) {
+              mileageMap.set(row.user_id, row.mileage);
+          }
 
-        let total = 0;
-        let contributors = [];
+          let total = 0;
+          let contributors = [];
 
-        for (const userId of userIds) {
-            const hasToken = tokensSet.has(userId);
+          for (const userId of userIds) {
+              const hasToken = tokensSet.has(userId);
 
-            if (!hasToken) {
-            contributors.push({ name: team[userId], mileage: "-" });
-            continue;
-            }
+              if (!hasToken) {
+              contributors.push({ name: team[userId], mileage: "-" });
+              continue;
+              }
 
-            const mileage = mileageMap.get(userId) ?? 0;
-            total += mileage;
+              const mileage = mileageMap.get(userId) ?? 0;
+              total += mileage;
 
-            contributors.push({ name: team[userId], mileage });
-        }
+              contributors.push({ name: team[userId], mileage });
+          }
 
-        // Sort contributors by mileage descending, treating "-" as lowest
-        contributors.sort((a, b) => {
-            if (a.mileage === "-") return 1;
-            if (b.mileage === "-") return -1;
-            return b.mileage - a.mileage;
-        });
+          // Sort contributors by mileage descending, treating "-" as lowest
+          contributors.sort((a, b) => {
+              if (a.mileage === "-") return 1;
+              if (b.mileage === "-") return -1;
+              return b.mileage - a.mileage;
+          });
 
-        return { total: Number(total).toFixed(2), contributors };
+          return { total: Number(total).toFixed(2), contributors };
     }
 
     const team1Stats = await getTeamStats(team1);
-    const team2Stats = await getTeamStats(team2);
+    
+    const team2Stats = await getTeamStats(getTeam2ForWeek(weekNum));
 
     res.json({
         weekNum,
@@ -246,7 +249,7 @@ app.get('/team-history', async (req, res) => {
     // const history = weekNums.map(weekNum => {
     const history = await Promise.all(weekNums.map(async weekNum => {
         const team1Total = await getTeamTotal(team1, weekNum);
-        const team2Total = await getTeamTotal(team2, weekNum);
+        const team2Total = await getTeamTotal(getTeam2ForWeek(weekNum), weekNum);
 
         // Only count points if the week has ended
         const weekEnd = new Date(weekRanges[weekNum].end);
