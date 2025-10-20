@@ -15,7 +15,7 @@ const team2Base = {
   "37178340": "Amy" // Amy joins from week 9 onward; adding to base so she is included in the all time leaderboards
 };
 
-// const amyId = "37178340";
+const amyId = "37178340";
 // const aaronId = "84566629";
 
 function getTeam2ForWeek(weekNum) {
