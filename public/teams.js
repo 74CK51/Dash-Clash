@@ -21,7 +21,7 @@ function getTeam2ForWeek(weekNum) {
   const team2 = { ...team2Base };
 
   if (weekNum >= 9) {
-    delete team2[aaronId];
+    // delete team2[aaronId];
     team2[amyId] = "Amy";
   }
 
