@@ -11,18 +11,19 @@ const team2Base = {
   "31772969": "Carly",
   "165773731": "Hayley",
   "118539458": "Mady",
-  "84566629": "Aaron" // Aaron is on team 2 for weeks 0-8, then Amy replaces him from week 9 due to injury
+  "84566629": "Aaron", 
+  "37178340": "Amy" // Amy joins from week 9 onward; adding to base so she is included in the all time leaderboards
 };
 
-const amyId = "37178340";
-const aaronId = "84566629";
+// const amyId = "37178340";
+// const aaronId = "84566629";
 
 function getTeam2ForWeek(weekNum) {
   const team2 = { ...team2Base };
 
-  if (weekNum >= 9) {
+  if (weekNum < 9) {
     // delete team2[aaronId];
-    team2[amyId] = "Amy";
+    delete team2[amyId];
   }
 
   return team2;
