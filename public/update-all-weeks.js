@@ -74,14 +74,66 @@ async function updateUserUpToToday(userId) {
   console.log("✅ All valid weeks up to today have been updated.");
 }
 
+async function updateUserThisWeek(userId) {
+    // Get the current week number
+    const today = new Date();
+    const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
+
+    let currentWeekNum = null;
+    for (let weekNum of weekNums) {
+        const { start, end } = weekRanges[weekNum];
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        if (today >= startDate && today <= endDate) {
+            currentWeekNum = weekNum;
+            break;
+        }
+    }
+
+    if (!currentWeekNum) {
+        console.log('No current week found for today.');
+        return false;
+    }
+
+    console.log(`Updating user ${userMap[userId]} (${userId}) for week ${currentWeekNum}`);
+    return await updateUserWeeklyMileage(userId, currentWeekNum);
+}
+
+async function updateAllUsersThisWeek() {
+    const today = new Date();
+    const weekNums = Object.keys(weekRanges).map(Number).sort((a, b) => a - b);
+
+    let currentWeekNum = null;
+    for (let weekNum of weekNums) {
+        const { start, end } = weekRanges[weekNum];
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        if (today >= startDate && today <= endDate) {
+            currentWeekNum = weekNum;
+            break;
+        }
+    }
+
+    if (!currentWeekNum) {
+        console.log('No current week found for today.');
+        return false;
+    }
+
+    console.log(`Updating all users for week ${currentWeekNum}`);
+    return await updateAllUsersWeeklyMileage(currentWeekNum);
+}
+
+
 module.exports = {
     getCurrentWeekIndex,
     updateAllUsersUpToToday,
-    updateUserUpToToday
+    updateUserUpToToday,
+    updateUserThisWeek,
+    updateAllUsersThisWeek
 }
 
 if (require.main === module) {
-  updateAllUsersUpToToday()
+  updateAllUsersThisWeek()
     .then(() => process.exit(0))
     .catch(err => {
       console.error(err);

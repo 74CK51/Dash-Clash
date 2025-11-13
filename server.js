@@ -6,7 +6,7 @@ const Database = require('better-sqlite3');
 const app = express();
 const { userMap, weekRanges, pool } = require('./api/strava');
 const { team1, getTeam2ForWeek } = require('./public/teams');
-const { updateAllUsersUpToToday, updateUserUpToToday } = require('./public/update-all-weeks');
+const { updateAllUsersUpToToday, updateUserUpToToday, updateUserThisWeek } = require('./public/update-all-weeks');
 const PORT = 3000;
 
 app.use(express.static('public')); // serve HTML/JS
@@ -313,7 +313,7 @@ app.post('/strava-webhook', express.json(), (req, res) => {
     try {
       // You may want to determine the correct weekNum here
       // For now, update all weeks for this athlete
-      updateUserUpToToday(athleteId);
+      updateUserThisWeek(athleteId);
     } catch (err) {
       console.error('Error updating athlete stats:', err);
     }
